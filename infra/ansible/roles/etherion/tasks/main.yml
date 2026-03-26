@@ -1,0 +1,40 @@
+---
+- name: Install Python 3.11
+  package:
+    name: python3.11
+    state: present
+
+- name: Install pip
+  package:
+    name: python3-pip
+    state: present
+
+- name: Create virtualenv and install etherion
+  pip:
+    name: "etherion=={{ etherion_version }}"
+    virtualenv: "{{ etherion_install_dir }}/venv"
+    virtualenv_python: python3.11
+
+- name: Install systemd service units
+  copy:
+    src: "{{ playbook_dir }}/../systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: '0644'
+  loop:
+    - etherion-api.service
+    - etherion-worker.service
+    - etherion-worker-artifacts.service
+    - etherion-beat.service
+  notify: reload systemd
+
+- name: Enable and start Etherion services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  loop:
+    - etherion-api
+    - etherion-worker
+    - etherion-worker-artifacts
+    - etherion-beat

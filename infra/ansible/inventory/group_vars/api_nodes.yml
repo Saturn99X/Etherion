@@ -1,0 +1,5 @@
+---
+api_port: 8080
+api_workers: 4
+celery_concurrency: 8
+celery_queues: "celery,worker-artifacts"

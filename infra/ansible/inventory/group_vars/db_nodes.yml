@@ -1,0 +1,5 @@
+---
+postgres_max_connections: 300
+postgres_shared_buffers: "1GB"
+patroni_scope: etherion
+patroni_dcs: etcd

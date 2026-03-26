@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1.4
+# Dockerfile for Celery Workers
+# NOTE: Using full requirements.txt to avoid missing transitive dependencies
+
+# Stage 1: Python Build Stage with BuildKit cache
+FROM python:3.11-slim-bookworm AS python-builder
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy full requirements (worker needs same deps as API for shared imports)
+COPY requirements.txt .
+
+# Install CPU-only PyTorch first (if needed by any dep) then all requirements
+# Using BuildKit cache mount for pip cache
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Pre-cache tiktoken encoding to avoid runtime download (VPC may block network)
+ENV TIKTOKEN_CACHE_DIR=/opt/tiktoken_cache
+RUN mkdir -p /opt/tiktoken_cache && python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
+
+# Stage 2: Final Production Image (minimal)
+FROM python:3.11-slim-bookworm
+WORKDIR /app
+
+# Create a non-root user
+RUN useradd --create-home appuser
+
+# Copy the virtual environment from builder
+COPY --from=python-builder /opt/venv /opt/venv
+
+# Copy pre-cached tiktoken encoding
+COPY --from=python-builder /opt/tiktoken_cache /opt/tiktoken_cache
+ENV TIKTOKEN_CACHE_DIR=/opt/tiktoken_cache
+
+# Copy ONLY the source code needed for worker (no zbin, no alembic)
+COPY --chown=appuser:appuser src/ /app/src/
+
+# Switch to non-root user
+USER appuser
+
+# Set the PATH to include the virtual environment
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Set Celery-specific environment variables
+ENV PYTHONUNBUFFERED=1
+ENV CELERY_BROKER_URL=redis://redis:6379/0
+ENV CELERY_RESULT_BACKEND=redis://redis:6379/0
+ENV REDIS_URL=redis://redis:6379/0
+ENV CELERY_QUEUE=etherion_tasks
+
+# IMPORTANT: Celery worker configuration (CELERY_CONCURRENCY, queue, etc.) 
+# is set by Terraform at deploy time via environment_variables in main.tf.
+# Do NOT hardcode these values here — they will be overridden.
+# See: terraform/environments/prod/main.tf → worker_agents_service / worker_artifacts_service
+
+# Health check for worker
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import redis; r = redis.Redis.from_url('${REDIS_URL}'); r.ping()" || exit 1
+
+# Run Celery worker
+CMD ["python", "-m", "src.celery_worker"]

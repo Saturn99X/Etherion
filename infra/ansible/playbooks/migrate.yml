@@ -1,0 +1,12 @@
+---
+- name: Run database migrations
+  hosts: api_nodes[0]
+  become: true
+  become_user: "{{ etherion_user }}"
+  tasks:
+    - name: Run alembic upgrade
+      command: "{{ etherion_install_dir }}/venv/bin/etherion migrate head"
+      args:
+        chdir: "{{ etherion_install_dir }}"
+      environment:
+        DATABASE_URL: "{{ lookup('env', 'DATABASE_URL') }}"

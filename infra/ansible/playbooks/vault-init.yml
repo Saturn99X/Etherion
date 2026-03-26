@@ -1,0 +1,54 @@
+---
+- name: Initialize and configure HashiCorp Vault
+  hosts: vault_nodes
+  become: true
+  tasks:
+    - name: Start Vault service
+      systemd:
+        name: vault
+        state: started
+        enabled: true
+
+    - name: Check Vault initialization status
+      uri:
+        url: "{{ vault_addr }}/v1/sys/init"
+        return_content: true
+      register: vault_init_status
+
+    - name: Initialize Vault (first time only)
+      uri:
+        url: "{{ vault_addr }}/v1/sys/init"
+        method: POST
+        body_format: json
+        body:
+          secret_shares: 5
+          secret_threshold: 3
+      register: vault_init_result
+      when: not vault_init_status.json.initialized
+
+    - name: Save unseal keys (SECURE THIS FILE)
+      copy:
+        content: "{{ vault_init_result.json | to_nice_json }}"
+        dest: /root/vault-init-keys.json
+        mode: '0600'
+      when: not vault_init_status.json.initialized
+
+    - name: Enable AppRole auth method
+      uri:
+        url: "{{ vault_addr }}/v1/sys/auth/approle"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+        body_format: json
+        body:
+          type: approle
+
+    - name: Create etherion app policy
+      uri:
+        url: "{{ vault_addr }}/v1/sys/policies/acl/etherion-app"
+        method: PUT
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+        body_format: json
+        body:
+          policy: "{{ lookup('file', '../vault/policies/etherion-app.hcl') }}"

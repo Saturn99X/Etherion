@@ -1,0 +1,12 @@
+{
+  "id": "nixos-install",
+  "name": "NixOS Installer",
+  "boot": {
+    "kernel": "/assets/nixos/bzImage",
+    "initrd": ["/assets/nixos/initrd"],
+    "args": [
+      "init=/nix/store/...-nixos-system/init",
+      "nixos.install"
+    ]
+  }
+}

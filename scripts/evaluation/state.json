@@ -1,0 +1,437 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwd2RfNGE2YWJkNmMxMjY1YjU3OCIsImVtYWlsIjoiZXZhbC1lMzJiOGVmMThkQGV0aGVyaW9uYWkuY29tIiwidGVuYW50X2lkIjoyLCJ0ZW5hbnRfc3ViZG9tYWluIjoidGdhb2ltaSIsImV4cCI6MTc2NzgzMDIwOX0.bc8jJCR4W79Ux3QCIGuEF80V9gZmdEftURacP0cy00Q",
+  "admin_ingest_secret": "NUSv7BjKJzDvayEOvwjIv7tsb5VPFsD0",
+  "admin_ingest_url": "https://api.etherionai.com/webhook/admin/ingest-bytes",
+  "email": "eval-e32b8ef18d@etherionai.com",
+  "graphql_http": "https://api.etherionai.com/graphql",
+  "graphql_ws": "wss://api.etherionai.com/graphql",
+  "invite_token_used": false,
+  "jwt_payload": {
+    "email": "eval-e32b8ef18d@etherionai.com",
+    "exp": 1767653359,
+    "sub": "pwd_4a6abd6c1265b578",
+    "tenant_id": 2,
+    "tenant_subdomain": "tgaoimi"
+  },
+  "kb": {
+    "bootstrap_ingest": {
+      "data": {
+        "chapter_count": 1,
+        "doc_ids": [
+          "d70ae663-a8de-4d1f-b878-16eea696ee35"
+        ],
+        "elapsed_s": 1.816,
+        "error": null,
+        "errors": [],
+        "filename": "kb_bootstrap.txt",
+        "gcs_uri": "gs://tnt-2-media/uploads/cc3789c9b4765371c66b593c95b1f189fb4c659862fff413e357479a14725c36/kb_bootstrap.txt",
+        "image_ids": [],
+        "job_id": "aa58ee5c-e4c2-4d81-b7b1-9019d62ce97b",
+        "mime_type": "text/plain",
+        "part_count": 1,
+        "size_bytes": 75,
+        "stage": "COMPLETED",
+        "started_at": "2026-01-07T12:58:17.491637Z",
+        "status": "COMPLETED",
+        "tenant_id": "2",
+        "total_tokens": 14,
+        "updated_at": "2026-01-07T12:58:19.307613Z"
+      },
+      "status_code": 200
+    },
+    "verification": {
+      "dataset": {
+        "full_id": "fabled-decker-476913-v9:tnt_2",
+        "location": "US"
+      },
+      "errors": [],
+      "fallback_used": false,
+      "tables": {
+        "multimodal_docs": {
+          "fields": [
+            "doc_id",
+            "tenant_id",
+            "project_id",
+            "gcs_uri",
+            "filename",
+            "part_name",
+            "part_number",
+            "total_parts",
+            "mime_type",
+            "size_bytes",
+            "source_doc_id",
+            "chapter_count",
+            "vector_embedding",
+            "metadata",
+            "created_at",
+            "updated_at"
+          ],
+          "has_vector_embedding": true,
+          "num_rows": 11
+        }
+      }
+    }
+  },
+  "password": "TestPass123!",
+  "pdf_ingestion": {
+    "entropy_pdf": {
+      "ingest": {
+        "data": {
+          "error": null,
+          "filename": "entropy.pdf",
+          "gcs_uri": "gs://tnt-2-media/uploads/77f5f22748a080c1521f8cd0daab03d7030eaa9a0f3f2cfbbf47867604daac5d/entropy.pdf",
+          "job_id": "b7fa78dc-a623-4266-959d-d59d6d12c2fb",
+          "mime_type": "application/pdf",
+          "project_id": "physics_entropy_eval",
+          "size_bytes": 1419631,
+          "stage": "PARSE",
+          "started_at": "2026-01-07T12:58:36.064601Z",
+          "status": "RUNNING",
+          "substage": "START",
+          "tenant_id": "2",
+          "updated_at": "2026-01-07T12:58:36.452326Z"
+        },
+        "status_code": 504
+      },
+      "pdf_path": "/home/saturnx/langchain-app/entropy.pdf",
+      "project_id": "physics_entropy_eval",
+      "search": {
+        "errors": [
+          {
+            "message": "Ingestion not completed within time budget",
+            "source": "eval3",
+            "type": "IngestNotCompleted"
+          }
+        ]
+      }
+    }
+  },
+  "question_runs": {
+    "physics_team_questions": {
+      "results": [
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_PUu4p6LULT-vkru2",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Explain entropy in thermodynamics with a concrete everyday analogy.",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 1,
+          "job_id": "job_PUu4p6LULT-vkru2",
+          "question": "Explain entropy in thermodynamics with a concrete everyday analogy.",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q01_job_PUu4p6LULT-vkru2_trace.jsonl"
+          }
+        },
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_AhhLLlBKRRJC01Rj",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Define Shannon entropy and explain what it measures. Give a simple example with a biased coin.",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 2,
+          "job_id": "job_AhhLLlBKRRJC01Rj",
+          "question": "Define Shannon entropy and explain what it measures. Give a simple example with a biased coin.",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q02_job_AhhLLlBKRRJC01Rj_trace.jsonl"
+          }
+        },
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_DBI4YRvvYum3euMj",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Carefully relate thermodynamic entropy (Boltzmann/Gibbs) to information entropy. Where does the analogy break?",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 3,
+          "job_id": "job_DBI4YRvvYum3euMj",
+          "question": "Carefully relate thermodynamic entropy (Boltzmann/Gibbs) to information entropy. Where does the analogy break?",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q03_job_DBI4YRvvYum3euMj_trace.jsonl"
+          }
+        },
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_IiLluksI_77m7ZG1",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Derive (at a teaching level) why entropy is extensive for weakly interacting subsystems and mention assumptions.",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 4,
+          "job_id": "job_IiLluksI_77m7ZG1",
+          "question": "Derive (at a teaching level) why entropy is extensive for weakly interacting subsystems and mention assumptions.",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q04_job_IiLluksI_77m7ZG1_trace.jsonl"
+          }
+        },
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_OErn44wp4KedeBmL",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Given probabilities p=[0.1,0.2,0.3,0.4], compute Shannon entropy in bits and interpret the result.",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 5,
+          "job_id": "job_OErn44wp4KedeBmL",
+          "question": "Given probabilities p=[0.1,0.2,0.3,0.4], compute Shannon entropy in bits and interpret the result.",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q05_job_OErn44wp4KedeBmL_trace.jsonl"
+          }
+        },
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_lr5A2XsaFOvTe6pw",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Create a CSV table of Shannon entropy H(p) (bits) for a Bernoulli(p) source for p in [0.01,0.05,0.1,...,0.95,0.99]. Then generate a chart of H(p) vs p (label axes, title).",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 6,
+          "job_id": "job_lr5A2XsaFOvTe6pw",
+          "question": "Create a CSV table of Shannon entropy H(p) (bits) for a Bernoulli(p) source for p in [0.01,0.05,0.1,...,0.95,0.99]. Then generate a chart of H(p) vs p (label axes, title).",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q06_job_lr5A2XsaFOvTe6pw_trace.jsonl"
+          }
+        },
+        {
+          "archived_trace_summary": {
+            "data": {
+              "data": {
+                "getArchivedTraceSummary": null
+              }
+            },
+            "status_code": 200
+          },
+          "execute_goal_response": {
+            "data": {
+              "data": {
+                "executeGoal": {
+                  "job_id": "job_b38dRYZGL5fJbZso",
+                  "message": "Goal execution has been queued for processing",
+                  "status": "QUEUED",
+                  "success": true
+                }
+              }
+            },
+            "status_code": 200
+          },
+          "goal_input": {
+            "agentTeamId": "at_D4o-a-I2D5Z6luUJ",
+            "context": "Physics teaching evaluation run. Answer clearly and progressively; show steps when mathematical.",
+            "goal": "Create an Excel file that contains: (a) the same entropy table, (b) a second table comparing H(p) in bits vs nats, and (c) a short text block explaining how to convert between them. Also produce a chart image summarizing both curves.",
+            "userId": "pwd_4a6abd6c1265b578"
+          },
+          "index": 7,
+          "job_id": "job_b38dRYZGL5fJbZso",
+          "question": "Create an Excel file that contains: (a) the same entropy table, (b) a second table comparing H(p) in bits vs nats, and (c) a short text block explaining how to convert between them. Also produce a chart image summarizing both curves.",
+          "trace": {
+            "extracted": {},
+            "jsonl_path": "/home/saturnx/langchain-app/scripts/evaluation/out/physics_team_questions/q07_job_b38dRYZGL5fJbZso_trace.jsonl"
+          }
+        }
+      ],
+      "team_id": "at_D4o-a-I2D5Z6luUJ",
+      "thread_id": null
+    }
+  },
+  "requested_subdomain": "tgaoimi",
+  "signup_response": {
+    "data": {
+      "data": {
+        "passwordSignup": {
+          "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwd2RfNGE2YWJkNmMxMjY1YjU3OCIsImVtYWlsIjoiZXZhbC1lMzJiOGVmMThkQGV0aGVyaW9uYWkuY29tIiwidGVuYW50X2lkIjoyLCJ0ZW5hbnRfc3ViZG9tYWluIjoidGdhb2ltaSIsImV4cCI6MTc2NzY1MzM1OX0.RmLXZviwuvedTbI39MEv8ZIcdAp7hk8F06u3iB6Arto",
+          "token_type": "bearer",
+          "user": {
+            "email": "eval-e32b8ef18d@etherionai.com",
+            "name": "Eval User",
+            "provider": "password",
+            "tenant_subdomain": "tgaoimi",
+            "user_id": "pwd_4a6abd6c1265b578"
+          }
+        }
+      }
+    },
+    "status_code": 200
+  },
+  "team_custom_agent_ids": [
+    "ca_cgiLfhJeUjqiHUfR",
+    "ca_6lpxIr_fY-um-_BH",
+    "ca_WgWyOUqVfr4UXug3"
+  ],
+  "team_id": "at_D4o-a-I2D5Z6luUJ",
+  "team_preapproved_tools": [
+    "code_interpreter",
+    "file_writer",
+    "knowledge_retrieval"
+  ],
+  "teams": {
+    "physics_teaching": {
+      "request": {
+        "name": "Physics Teaching Team",
+        "specification": "Create a physics teaching team with exactly 3 specialists: (1) an Information Theory specialist (Shannon entropy, coding, KL divergence), (2) a Thermodynamics specialist (stat mech foundations, ensembles, Boltzmann/Gibbs entropy), (3) an Entropy specialist that bridges both and focuses on intuition and worked examples. The team should be able to teach progressively from basics to advanced, create exercises, and produce structured learning artifacts when helpful."
+      },
+      "response": {
+        "data": {
+          "data": {
+            "createAgentTeam": {
+              "customAgentIDs": [
+                "ca_cgiLfhJeUjqiHUfR",
+                "ca_6lpxIr_fY-um-_BH",
+                "ca_WgWyOUqVfr4UXug3"
+              ],
+              "description": "Evaluation team for physics teaching",
+              "id": "at_D4o-a-I2D5Z6luUJ",
+              "name": "Physics Teaching Team",
+              "preApprovedToolNames": [
+                "code_interpreter",
+                "file_writer",
+                "knowledge_retrieval"
+              ]
+            }
+          }
+        },
+        "status_code": 200
+      }
+    }
+  },
+  "tenant_id": 2,
+  "user": {
+    "email": "eval-e32b8ef18d@etherionai.com",
+    "name": "Eval User",
+    "provider": "password",
+    "tenant_subdomain": "tgaoimi",
+    "user_id": "pwd_4a6abd6c1265b578"
+  }
+}

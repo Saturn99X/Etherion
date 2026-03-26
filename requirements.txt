@@ -1,0 +1,124 @@
+# requirements.txt
+# Dependencies for the Etherion AI platform
+
+# Core dependencies
+langchain>=0.3.27
+langchain-core>=0.3.72
+langchain-google-vertexai>=1.0.0
+langchain-openai>=1.0.0
+langchain-text-splitters>=0.3.9
+langsmith>=0.4.16
+pydantic>=2.11.7
+email-validator>=2.2.0
+SQLAlchemy>=2.0.43
+sqlmodel>=0.0.8
+aiosqlite>=0.20.0
+requests>=2.32.4
+PyYAML>=6.0.2
+tenacity>=9.1.2
+typing-extensions>=4.14.1
+packaging>=25.0
+
+# Google Cloud dependencies
+google-cloud-secret-manager>=2.24.0
+google-api-core>=2.25.1
+google-auth>=2.40.3
+googleapis-common-protos>=1.70.0
+protobuf>=4.21.0
+google-cloud-aiplatform>=1.79.0
+google-cloud-bigquery>=3.27.0
+google-cloud-bigquery-storage>=2.26.0
+google-cloud-storage>=2.18.0
+google-cloud-vision>=3.8.0
+google-cloud-documentai>=2.33.0
+google-cloud-error-reporting
+google-cloud-monitoring
+google-api-python-client>=2.151.0
+google-auth-oauthlib>=1.2.0
+
+# Observability (planned OTEL integration)
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp-proto-http>=1.25.0
+opentelemetry-exporter-otlp-proto-grpc>=1.25.0
+
+# Redis dependencies
+redis>=4.5.0
+
+# Celery dependencies for async task processing
+celery>=5.3.4
+kombu>=5.3.4
+billiard>=4.2.0
+vine>=5.1.0
+
+# Environment management
+python-dotenv>=1.1.1
+
+# Testing dependencies
+pytest>=8.4.1
+pytest-asyncio>=0.21.0
+
+# HTTP client libraries
+httpx>=0.25.0
+httpcore>=1.0.9
+anyio>=4.10.0
+certifi>=2024.0.0
+aiohttp>=3.9.0
+httpx>=0.27.2
+
+# Async utilities
+asyncio-redis>=0.16.0
+aioredis>=2.0.1
+
+# Security dependencies
+cachetools>=5.5.2
+rsa>=4.9.1
+pyasn1>=0.6.1
+pyasn1-modules>=0.4.2
+
+# Database dependencies
+greenlet>=3.2.4
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+alembic>=1.13.1
+
+# JSON processing
+orjson>=3.11.2
+jsonpatch>=1.33
+jsonpointer>=3.0.0
+
+# Compression
+zstandard>=0.24.0
+
+# Web framework and GraphQL dependencies (ADDED for Dynamic Loading & Team Composition)
+fastapi>=0.100.0
+uvicorn>=0.20.0
+strawberry-graphql>=0.200.0
+graphql-core>=3.2.0
+python-multipart>=0.0.6
+authlib>=1.3.2
+python-jose[cryptography]>=3.3.0
+
+# Utilities
+sniffio>=1.3.1
+h11>=0.16.0
+grpcio>=1.60.0
+grpcio-status>=1.60.0
+proto-plus>=1.26.1
+grpc-google-iam-v1>=0.14.2
+requests-toolbelt>=1.0.0
+
+# Load testing dependencies
+psutil>=5.9.0
+
+# File generation dependencies (Phase 3)
+reportlab>=4.0.0
+openpyxl>=3.1.0
+python-docx>=1.1.0
+python-pptx>=0.6.21
+Pillow>=10.0.0
+pypdf>=5.0.0
+
+# Document parsing (multimodal ingestion pipeline)
+PyMuPDF>=1.24.0
+tiktoken>=0.5.0

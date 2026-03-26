@@ -1,0 +1,17 @@
+# Ignore dependencies and build outputs
+node_modules
+.next
+out
+.cache
+.pnpm-store
+.turbo
+coverage
+build
+dist
+
+# VCS and env
+.git
+.gitignore
+.env
+.env.*
+.DS_Store

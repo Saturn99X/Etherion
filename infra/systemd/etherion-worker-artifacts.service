@@ -1,0 +1,24 @@
+[Unit]
+Description=Etherion Celery Worker (Artifacts Queue)
+After=network.target redis.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=etherion
+Group=etherion
+WorkingDirectory=/opt/etherion
+EnvironmentFile=/etc/etherion/.env
+ExecStart=/opt/etherion/venv/bin/etherion worker start --queues=worker-artifacts --concurrency=2
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=etherion-worker-artifacts
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

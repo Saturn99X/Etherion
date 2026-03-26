@@ -1,0 +1,38 @@
+---
+- name: Bootstrap nodes with NixOS and base configuration
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: Configure database nodes
+  hosts: db_nodes
+  become: true
+  roles:
+    - postgres-ha
+
+- name: Configure Redis nodes
+  hosts: redis_nodes
+  become: true
+  roles:
+    - redis-cluster
+
+- name: Configure MinIO nodes
+  hosts: minio_nodes
+  become: true
+  roles:
+    - minio
+
+- name: Configure Vault nodes
+  hosts: vault_nodes
+  become: true
+  roles:
+    - vault
+
+- name: Configure API nodes
+  hosts: api_nodes
+  become: true
+  roles:
+    - haproxy
+    - nginx
+    - etherion

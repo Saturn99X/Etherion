@@ -1,0 +1,65 @@
+# Data Model Documentation Index
+
+This directory contains comprehensive documentation about Etherion's data model, multi-tenant architecture, and Row-Level Security implementation.
+
+## Files
+
+1. **README.md** (139 lines)
+   - Overview of the data model philosophy
+   - Why PostgreSQL
+   - Explanation of RLS
+   - The SET app.tenant_id pattern
+   - Why bugs can't leak data
+   - Quick entity map
+
+2. **entities.md** (358 lines)
+   - Detailed walkthrough of every major entity
+   - Tenant, User, Project, Conversation, Message
+   - Thread, ThreadMessage, ToolInvocation
+   - Job, ExecutionCost
+   - CustomAgentDefinition, AgentTeam
+   - ProjectKBFile, MessageArtifact
+   - UserObservation
+   - Key design patterns explained
+
+3. **relationships.md** (375 lines)
+   - The ownership chain (Tenant → everything)
+   - Detailed relationship diagrams
+   - ASCII ER diagram
+   - Referential integrity and cascades
+   - Soft deletes
+   - Index strategy
+   - Common query patterns
+
+4. **rls-deep-dive.md** (442 lines)
+   - What Row-Level Security is
+   - PostgreSQL RLS policies
+   - Etherion's RLS setup (app.tenant_id pattern)
+   - Defense in depth
+   - RLS with complex queries
+   - RLS with inserts and async
+   - Common pitfalls
+   - Testing RLS
+   - Migrations
+
+## Reading Order
+
+**For a new engineer:**
+1. Start with README.md to understand the philosophy
+2. Read entities.md to learn what data exists
+3. Review relationships.md to see how it connects
+4. Deep dive into rls-deep-dive.md when adding security features
+
+**For a security review:**
+Start with rls-deep-dive.md, then relationships.md
+
+**For schema evolution:**
+Review relationships.md (indexes, foreign keys) and entities.md (field meanings)
+
+## Quick Facts
+
+- Total lines: 1314
+- Total size: ~55 KB
+- Written for: senior engineer explaining to new hire
+- Emphasis: why, not what (prose + code, not bullet lists)
+- No external dependencies (GCP, Stripe, Cloud Run, etc.)

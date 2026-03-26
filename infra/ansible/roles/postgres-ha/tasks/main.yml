@@ -1,0 +1,33 @@
+---
+- name: Install PostgreSQL 16 + pgvector
+  package:
+    name:
+      - postgresql-16
+      - postgresql-16-pgvector
+      - patroni
+    state: present
+
+- name: Initialize PostgreSQL cluster
+  command: pg_createcluster 16 main --start
+  args:
+    creates: /var/lib/postgresql/16/main/PG_VERSION
+
+- name: Enable pgvector extension
+  become_user: postgres
+  postgresql_ext:
+    name: vector
+    db: "{{ postgres_db }}"
+    state: present
+
+- name: Create etherion database user
+  become_user: postgres
+  postgresql_user:
+    name: "{{ postgres_user }}"
+    password: "{{ postgres_password }}"
+    role_attr_flags: CREATEDB
+
+- name: Create etherion database
+  become_user: postgres
+  postgresql_db:
+    name: "{{ postgres_db }}"
+    owner: "{{ postgres_user }}"

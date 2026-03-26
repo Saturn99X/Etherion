@@ -1,0 +1,20 @@
+---
+- name: Install Redis
+  package:
+    name: redis-server
+    state: present
+
+- name: Configure Redis
+  template:
+    src: redis.conf.j2
+    dest: /etc/redis/redis.conf
+    owner: redis
+    group: redis
+    mode: '0640'
+  notify: restart redis
+
+- name: Enable and start Redis
+  systemd:
+    name: redis-server
+    state: started
+    enabled: true

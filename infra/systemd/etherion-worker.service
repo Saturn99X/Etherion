@@ -1,0 +1,25 @@
+[Unit]
+Description=Etherion Celery Worker
+Documentation=https://github.com/etherion-ai/etherion
+After=network.target redis.service postgresql.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=etherion
+Group=etherion
+WorkingDirectory=/opt/etherion
+EnvironmentFile=/etc/etherion/.env
+ExecStart=/opt/etherion/venv/bin/etherion worker start --queues=celery --concurrency=4
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=etherion-worker
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

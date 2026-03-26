@@ -1,0 +1,25 @@
+---
+- name: Install Nginx
+  package:
+    name: nginx
+    state: present
+
+- name: Deploy Nginx vhost config
+  copy:
+    src: "{{ playbook_dir }}/../nginx/etherion.conf"
+    dest: /etc/nginx/sites-available/etherion
+    mode: '0644'
+  notify: restart nginx
+
+- name: Enable Nginx vhost
+  file:
+    src: /etc/nginx/sites-available/etherion
+    dest: /etc/nginx/sites-enabled/etherion
+    state: link
+  notify: restart nginx
+
+- name: Enable and start Nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: true

@@ -1,0 +1,12 @@
+---
+- name: Bootstrap all nodes
+  import_playbook: bootstrap.yml
+
+- name: Initialize Vault
+  import_playbook: vault-init.yml
+
+- name: Deploy Etherion application
+  import_playbook: deploy-app.yml
+
+- name: Run database migrations
+  import_playbook: migrate.yml

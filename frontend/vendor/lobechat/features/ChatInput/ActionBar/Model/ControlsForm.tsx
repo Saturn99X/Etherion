@@ -1,0 +1,190 @@
+import { Form } from '@lobehub/ui';
+import type { FormItemProps } from '@lobehub/ui';
+import { Form as AntdForm, Grid, Switch } from 'antd';
+import isEqual from 'fast-deep-equal';
+import Link from 'next/link';
+import { memo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+
+import { useAgentStore } from '@/store/agent';
+import { agentChatConfigSelectors, agentSelectors } from '@/store/agent/selectors';
+import { aiModelSelectors, useAiInfraStore } from '@/store/aiInfra';
+
+import ContextCachingSwitch from './ContextCachingSwitch';
+import GPT5ReasoningEffortSlider from './GPT5ReasoningEffortSlider';
+import ReasoningEffortSlider from './ReasoningEffortSlider';
+import ReasoningTokenSlider from './ReasoningTokenSlider';
+import TextVerbositySlider from './TextVerbositySlider';
+import ThinkingBudgetSlider from './ThinkingBudgetSlider';
+import ThinkingSlider from './ThinkingSlider';
+
+const ControlsForm = memo(() => {
+  const { t } = useTranslation('chat');
+  const [model, provider, updateAgentChatConfig] = useAgentStore((s) => [
+    agentSelectors.currentAgentModel(s),
+    agentSelectors.currentAgentModelProvider(s),
+    s.updateAgentChatConfig,
+  ]);
+  const [form] = Form.useForm();
+  const enableReasoning = AntdForm.useWatch(['enableReasoning'], form);
+
+  const config = useAgentStore(agentChatConfigSelectors.currentChatConfig, isEqual);
+
+  const modelExtendParams = useAiInfraStore(aiModelSelectors.modelExtendParams(model, provider));
+
+  const screens = Grid.useBreakpoint();
+  const isNarrow = !screens.sm;
+
+  const descWide = { display: 'inline-block', width: 300 } as const;
+  const descNarrow = {
+    display: 'block',
+    maxWidth: '100%',
+    whiteSpace: 'normal',
+  } as const;
+
+  const items = [
+    {
+      children: <ContextCachingSwitch />,
+      desc: (
+        <span style={isNarrow ? descNarrow : descWide}>
+          <Trans i18nKey={'extendParams.disableContextCaching.desc'} ns={'chat'}>
+            单条对话生成成本最高可降低 90%，响应速度提升 4 倍（
+            <Link
+              href={'https://www.anthropic.com/news/prompt-caching?utm_source=lobechat'}
+              rel={'nofollow'}
+            >
+              了解更多
+            </Link>
+            ）。开启后将自动禁用历史记录限制
+          </Trans>
+        </span>
+      ),
+      label: t('extendParams.disableContextCaching.title'),
+      layout: isNarrow ? 'vertical' : 'horizontal',
+      minWidth: undefined,
+      name: 'disableContextCaching',
+    },
+    {
+      children: <Switch />,
+      desc: (
+        <span style={isNarrow ? descNarrow : descWide}>
+          <Trans i18nKey={'extendParams.enableReasoning.desc'} ns={'chat'}>
+            基于 Claude Thinking 机制限制（
+            <Link
+              href={
+                'https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking?utm_source=lobechat#why-thinking-blocks-must-be-preserved'
+              }
+              rel={'nofollow'}
+            >
+              了解更多
+            </Link>
+            ），开启后将自动禁用历史消息数限制
+          </Trans>
+        </span>
+      ),
+      label: t('extendParams.enableReasoning.title'),
+      layout: isNarrow ? 'vertical' : 'horizontal',
+      minWidth: undefined,
+      name: 'enableReasoning',
+    },
+    (enableReasoning || modelExtendParams?.includes('reasoningBudgetToken')) && {
+      children: <ReasoningTokenSlider />,
+      label: t('extendParams.reasoningBudgetToken.title'),
+      layout: 'vertical',
+      minWidth: undefined,
+      name: 'reasoningBudgetToken',
+      style: {
+        paddingBottom: 0,
+      },
+    },
+    {
+      children: <ReasoningEffortSlider />,
+      desc: 'reasoning_effort',
+      label: t('extendParams.reasoningEffort.title'),
+      layout: 'horizontal',
+      minWidth: undefined,
+      name: 'reasoningEffort',
+      style: {
+        paddingBottom: 0,
+      },
+    },
+    {
+      children: <GPT5ReasoningEffortSlider />,
+      desc: 'reasoning_effort',
+      label: t('extendParams.reasoningEffort.title'),
+      layout: 'horizontal',
+      minWidth: undefined,
+      name: 'gpt5ReasoningEffort',
+      style: {
+        paddingBottom: 0,
+      },
+    },
+    {
+      children: <TextVerbositySlider />,
+      desc: 'text_verbosity',
+      label: t('extendParams.textVerbosity.title'),
+      layout: 'horizontal',
+      minWidth: undefined,
+      name: 'textVerbosity',
+      style: {
+        paddingBottom: 0,
+      },
+    },
+    {
+      children: <ThinkingBudgetSlider />,
+      label: t('extendParams.reasoningBudgetToken.title'),
+      layout: 'vertical',
+      minWidth: 460,
+      name: 'thinkingBudget',
+      style: {
+        paddingBottom: 0,
+      },
+      tag: 'thinkingBudget',
+    },
+    {
+      children: <Switch />,
+      desc: isNarrow ? (
+        <span style={descNarrow}>{t('extendParams.urlContext.desc')}</span>
+      ) : (
+        t('extendParams.urlContext.desc')
+      ),
+      label: t('extendParams.urlContext.title'),
+      layout: isNarrow ? 'vertical' : 'horizontal',
+      minWidth: undefined,
+      name: 'urlContext',
+      style: isNarrow ? undefined : { width: 445 },
+      tag: 'urlContext',
+    },
+    {
+      children: <ThinkingSlider />,
+      label: t('extendParams.thinking.title'),
+      layout: 'horizontal',
+      minWidth: undefined,
+      name: 'thinking',
+      style: {
+        paddingBottom: 0,
+      },
+    },
+  ].filter(Boolean) as FormItemProps[];
+
+  return (
+    <Form
+      form={form}
+      initialValues={config}
+      items={
+        (modelExtendParams || [])
+          .map((item: any) => items.find((i) => i.name === item))
+          .filter(Boolean) as FormItemProps[]
+      }
+      itemsType={'flat'}
+      onValuesChange={async (_, values) => {
+        await updateAgentChatConfig(values);
+      }}
+      size={'small'}
+      style={{ fontSize: 12 }}
+      variant={'borderless'}
+    />
+  );
+});
+
+export default ControlsForm;

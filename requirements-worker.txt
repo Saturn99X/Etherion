@@ -1,0 +1,76 @@
+# Worker-only requirements (subset of requirements.txt)
+# Minimal dependencies for Celery background workers
+# DOES NOT include: FastAPI, Strawberry, GraphQL, web framework deps
+
+# Core LangChain runtime
+langchain>=0.3.27
+langchain-core>=0.3.72
+langchain-google-vertexai>=1.0.0
+langchain-openai>=1.0.0
+langchain-text-splitters>=0.3.9
+langsmith>=0.4.16
+pydantic>=2.11.7
+email-validator>=2.2.0
+tenacity>=9.1.2
+typing-extensions>=4.14.1
+packaging>=25.0
+
+# Google Cloud dependencies
+google-cloud-secret-manager>=2.24.0
+google-api-core>=2.25.1
+google-auth>=2.40.3
+googleapis-common-protos>=1.70.0
+protobuf>=4.21.0
+google-cloud-aiplatform>=1.79.0
+google-cloud-bigquery>=3.27.0
+google-cloud-bigquery-storage>=2.26.0
+google-cloud-storage>=2.18.0
+google-cloud-documentai>=2.33.0
+google-api-python-client>=2.151.0
+
+# Redis + Celery
+redis>=4.5.0
+celery>=5.3.4
+kombu>=5.3.4
+billiard>=4.2.0
+vine>=5.1.0
+aioredis>=2.0.1
+
+# Database
+SQLAlchemy>=2.0.43
+sqlmodel>=0.0.8
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+greenlet>=3.2.4
+
+# HTTP clients
+httpx>=0.27.2
+aiohttp>=3.9.0
+requests>=2.32.4
+certifi>=2024.0.0
+
+# Document processing (multimodal ingestion)
+PyMuPDF>=1.24.0
+tiktoken>=0.5.0
+Pillow>=10.0.0
+pypdf>=5.0.0
+
+# File generation (agent outputs)
+reportlab>=4.0.0
+openpyxl>=3.1.0
+python-docx>=1.1.0
+python-pptx>=0.6.21
+
+# JSON/Data processing
+orjson>=3.11.2
+jsonpatch>=1.33
+jsonpointer>=3.0.0
+PyYAML>=6.0.2
+
+# Environment
+python-dotenv>=1.1.1
+
+# gRPC (required by Google Cloud libs)
+grpcio>=1.60.0
+grpcio-status>=1.60.0
+proto-plus>=1.26.1

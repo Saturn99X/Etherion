@@ -1,0 +1,27 @@
+[Unit]
+Description=Etherion API Server (uvicorn)
+Documentation=https://github.com/etherion-ai/etherion
+After=network.target postgresql.service redis.service minio.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=etherion
+Group=etherion
+WorkingDirectory=/opt/etherion
+EnvironmentFile=/etc/etherion/.env
+ExecStart=/opt/etherion/venv/bin/etherion serve
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=etherion-api
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp /opt/etherion/logs
+
+[Install]
+WantedBy=multi-user.target

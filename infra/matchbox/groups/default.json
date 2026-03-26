@@ -1,0 +1,9 @@
+{
+  "id": "default",
+  "name": "Default NixOS Install",
+  "profile": "nixos-install",
+  "selector": {},
+  "metadata": {
+    "ssh_authorized_keys": []
+  }
+}

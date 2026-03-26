@@ -1,0 +1,62 @@
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import BuiltinType from './index';
+
+// Mock renders module
+vi.mock('@/tools/renders', () => ({
+  BuiltinToolsRenders: {
+    'lobe-web-browsing': vi.fn(({ content }) => <div>WebBrowsingRender: {content}</div>),
+    'lobe-code-interpreter': vi.fn(({ content }) => <div>CodeInterpreterRender: {content}</div>),
+  },
+}));
+
+// Mock useParseContent hook
+vi.mock('../useParseContent', () => ({
+  useParseContent: vi.fn((content) => ({ data: content })),
+}));
+
+describe('BuiltinType', () => {
+  it('should not render anything if identifier is not provided', () => {
+    const { container } = render(<BuiltinType content="..." id="123" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('should not render anything if identifier is unknown', () => {
+    const { container } = render(<BuiltinType content="{}" id="123" identifier="unknown" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('should render the correct renderer for web browsing', () => {
+    const content = '{"query":"test"}';
+    render(<BuiltinType content={content} id="123" identifier="lobe-web-browsing" />);
+    expect(screen.getByText(`WebBrowsingRender: ${content}`)).toBeInTheDocument();
+  });
+
+  it('should render the correct renderer for code interpreter', () => {
+    const content = '{"code":"print(1)"}';
+    render(<BuiltinType content={content} id="123" identifier="lobe-code-interpreter" />);
+    expect(screen.getByText(`CodeInterpreterRender: ${content}`)).toBeInTheDocument();
+  });
+
+  it('should pass correct props to renderer', () => {
+    const content = '{"test":"data"}';
+    const args = '{"arg":"value"}';
+    const pluginState = { state: 'value' };
+    const pluginError = { error: 'test' };
+
+    render(
+      <BuiltinType
+        content={content}
+        id="msg-123"
+        identifier="lobe-web-browsing"
+        arguments={args}
+        pluginState={pluginState}
+        pluginError={pluginError}
+        apiName="testApi"
+      />,
+    );
+
+    expect(screen.getByText(`WebBrowsingRender: ${content}`)).toBeInTheDocument();
+  });
+});

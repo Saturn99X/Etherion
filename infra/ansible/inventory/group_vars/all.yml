@@ -1,0 +1,22 @@
+---
+etherion_version: "0.1.0"
+etherion_install_dir: /opt/etherion
+etherion_user: etherion
+etherion_group: etherion
+etherion_env_file: /etc/etherion/.env
+
+vault_addr: "http://{{ hostvars[groups['vault_nodes'][0]]['ansible_host'] }}:8200"
+vault_mount: secret
+
+postgres_version: "16"
+postgres_user: etherion
+postgres_db: etherion
+
+redis_port: 6379
+
+minio_port: 9000
+minio_console_port: 9001
+minio_buckets:
+  - etherion-artifacts
+  - etherion-kb
+  - etherion-media

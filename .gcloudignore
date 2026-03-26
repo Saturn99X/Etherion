@@ -1,0 +1,27 @@
+# Exclude virtual environment directory
+venv/
+.venv/
+
+# Exclude common temporary and cache files
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.vscode/             # If you don't want to upload your editor settings
+.git/                # Exclude the git repository's internal files
+.gitignore
+.env                 # Your local environment variables file
+
+# Exclude macOS specific files (harmless on Windows, good to include)
+.DS_Store
+
+# Exclude logs or any other output files you generate locally
+*.log
+*.log.gz
+logs/
+output/              # If you have a directory for generated output
+
+# Explicitly include files crucial for the build (usually not needed if they are in root,
+# but good for safety if other rules are too broad)
+!Dockerfile
+!requirements.txt

@@ -1,0 +1,234 @@
+### batch_get_documents_metadata
+Required. The parent branch resource name, such as projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}. This corresponds to the parent field on the request instance; if request is provided, this should not be set.
+
+```
+projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}
+```
+
+
+```
+parent
+```
+
+
+```
+request
+```
+
+
+```
+request
+```
+
+
+```
+retry
+```
+
+
+```
+google.api_core.retry.Retry
+```
+
+Designation of what errors, if any, should be retried.
+
+```
+timeout
+```
+
+
+```
+float
+```
+
+The timeout for this request.
+
+```
+metadata
+```
+
+
+```
+Sequence[Tuple[str, Union[str, bytes]]]
+```
+
+Key/value pairs which should be sent along with the request as metadata. Normally, each value must be of type str, but for metadata keys ending with the suffix -bin, the corresponding values must be of type bytes.
+
+```
+str
+```
+
+
+```
+-bin
+```
+
+
+```
+bytes
+```
+
+
+```
+[google.cloud.discoveryengine_v1.types.BatchGetDocumentsMetadataResponse](https://cloud.google.com/python/docs/reference/discoveryengine/latest/google.cloud.discoveryengine_v1.types.BatchGetDocumentsMetadataResponse)
+```
+
+[google.cloud.discoveryengine_v1.types.BatchGetDocumentsMetadataResponse](https://cloud.google.com/python/docs/reference/discoveryengine/latest/google.cloud.discoveryengine_v1.types.BatchGetDocumentsMetadataResponse)
+
+### branch_path
+```
+branch_path(project: str, location: str, data_store: str, branch: str) -> str
+```
+
+
+```
+branch_path(project: str, location: str, data_store: str, branch: str) -> str
+```
+
+Returns a fully-qualified branch string.
+
+### cancel_operation
+```
+cancel_operation( request: typing.Optional[ google.longrunning.operations_pb2.CancelOperationRequest ] = None, *, retry: typing.Optional[ typing.Union[ google.api_core.retry.retry_unary.Retry, google.api_core.gapic_v1.method._MethodDefault, ] ] = _MethodDefault._DEFAULT_VALUE, timeout: typing.Union[float, object] = _MethodDefault._DEFAULT_VALUE, metadata: typing.Sequence[typing.Tuple[str, typing.Union[str, bytes]]] = () ) -> None
+```
+
+
+```
+cancel_operation( request: typing.Optional[ google.longrunning.operations_pb2.CancelOperationRequest ] = None, *, retry: typing.Optional[ typing.Union[ google.api_core.retry.retry_unary.Retry, google.api_core.gapic_v1.method._MethodDefault, ] ] = _MethodDefault._DEFAULT_VALUE, timeout: typing.Union[float, object] = _MethodDefault._DEFAULT_VALUE, metadata: typing.Sequence[typing.Tuple[str, typing.Union[str, bytes]]] = () ) -> None
+```
+
+Starts asynchronous cancellation on a long-running operation.
+The server makes a best effort to cancel the operation, but success is not guaranteed. If the server doesn't support this method, it returns google.rpc.Code.UNIMPLEMENTED.
+
+```
+google.rpc.Code.UNIMPLEMENTED
+```
+
+
+```
+request
+```
+
+
+```
+.operations_pb2.CancelOperationRequest
+```
+
+
+```
+.operations_pb2.CancelOperationRequest
+```
+
+The request object. Request message for CancelOperation method.
+
+```
+CancelOperation
+```
+
+
+```
+retry
+```
+
+
+```
+google.api_core.retry.Retry
+```
+
+Designation of what errors, if any, should be retried.
+
+```
+timeout
+```
+
+
+```
+float
+```
+
+The timeout for this request.
+
+```
+metadata
+```
+
+
+```
+Sequence[Tuple[str, Union[str, bytes]]]
+```
+
+Key/value pairs which should be sent along with the request as metadata. Normally, each value must be of type str, but for metadata keys ending with the suffix -bin, the corresponding values must be of type bytes.
+
+```
+str
+```
+
+
+```
+-bin
+```
+
+
+```
+bytes
+```
+
+### common_billing_account_path
+```
+common_billing_account_path(billing_account: str) -> str
+```
+
+
+```
+common_billing_account_path(billing_account: str) -> str
+```
+
+Returns a fully-qualified billing_account string.
+
+### common_folder_path
+```
+common_folder_path(folder: str) -> str
+```
+
+
+```
+common_folder_path(folder: str) -> str
+```
+
+Returns a fully-qualified folder string.
+
+### common_location_path
+```
+common_location_path(project: str, location: str) -> str
+```
+
+
+```
+common_location_path(project: str, location: str) -> str
+```
+
+Returns a fully-qualified location string.
+
+### common_organization_path
+```
+common_organization_path(organization: str) -> str
+```
+
+
+```
+common_organization_path(organization: str) -> str
+```
+
+Returns a fully-qualified organization string.
+
+### common_project_path
+```
+common_project_path(project: str) -> str
+```
+
+
+```
+common_project_path(project: str) -> str
+```
+
+Returns a fully-qualified project string.

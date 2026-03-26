@@ -1,0 +1,36 @@
+---
+- name: Update package cache
+  package:
+    update_cache: true
+
+- name: Create etherion user
+  user:
+    name: "{{ etherion_user }}"
+    group: "{{ etherion_group }}"
+    system: true
+    home: "{{ etherion_install_dir }}"
+    createhome: true
+    shell: /bin/bash
+
+- name: Create etherion group
+  group:
+    name: "{{ etherion_group }}"
+    system: true
+
+- name: Create config directory
+  file:
+    path: /etc/etherion
+    state: directory
+    owner: "{{ etherion_user }}"
+    group: "{{ etherion_group }}"
+    mode: '0750'
+
+- name: Configure sysctl for performance
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - { key: net.core.somaxconn, value: "65535" }
+    - { key: vm.overcommit_memory, value: "1" }
+    - { key: net.ipv4.tcp_max_syn_backlog, value: "65535" }

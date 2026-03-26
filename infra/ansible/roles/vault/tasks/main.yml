@@ -1,0 +1,36 @@
+---
+- name: Install HashiCorp Vault
+  package:
+    name: vault
+    state: present
+
+- name: Create Vault config directory
+  file:
+    path: /etc/vault.d
+    state: directory
+    owner: vault
+    group: vault
+    mode: '0750'
+
+- name: Deploy Vault configuration
+  copy:
+    src: "{{ playbook_dir }}/../vault/config.hcl"
+    dest: /etc/vault.d/vault.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+  notify: restart vault
+
+- name: Create Vault data directory
+  file:
+    path: /var/lib/vault/data
+    state: directory
+    owner: vault
+    group: vault
+    mode: '0700'
+
+- name: Enable and start Vault
+  systemd:
+    name: vault
+    state: started
+    enabled: true

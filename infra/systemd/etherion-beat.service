@@ -1,0 +1,24 @@
+[Unit]
+Description=Etherion Celery Beat Scheduler
+After=network.target redis.service etherion-worker.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=etherion
+Group=etherion
+WorkingDirectory=/opt/etherion
+EnvironmentFile=/etc/etherion/.env
+ExecStart=/opt/etherion/venv/bin/etherion worker beat
+Restart=always
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=etherion-beat
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

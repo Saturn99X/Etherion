@@ -1,0 +1,5 @@
+recursive-include etherion/_data *
+recursive-include src *
+recursive-include alembic *
+include alembic.ini
+include .env.example

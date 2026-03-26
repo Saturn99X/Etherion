@@ -1,0 +1,31 @@
+---
+- name: Deploy Etherion application
+  hosts: api_nodes
+  become: true
+  tasks:
+    - name: Install etherion package
+      pip:
+        name: "etherion=={{ etherion_version }}"
+        virtualenv: "{{ etherion_install_dir }}/venv"
+        virtualenv_python: python3.11
+      notify: restart etherion services
+
+    - name: Ensure env file exists
+      template:
+        src: templates/etherion.env.j2
+        dest: "{{ etherion_env_file }}"
+        owner: "{{ etherion_user }}"
+        group: "{{ etherion_group }}"
+        mode: '0600'
+
+  handlers:
+    - name: restart etherion services
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+        daemon_reload: true
+      loop:
+        - etherion-api
+        - etherion-worker
+        - etherion-worker-artifacts
+        - etherion-beat

@@ -1,0 +1,680 @@
+import logging
+import asyncio
+from typing import Dict, Any, Optional, List
+from datetime import datetime, timedelta
+from langchain.agents import create_react_agent
+from langchain_core.prompts import PromptTemplate
+
+from src.core.caching import get_cache_manager
+from src.utils.cache_invalidator import get_cache_invalidator
+from src.tasks.cache_cleanup import increment_tenant_active_seconds
+from src.database.db import get_db, session_scope
+from src.database.models import Job, ExecutionTraceStep, Tenant, JobStatus, StepType
+from src.database.models import CustomAgentDefinition
+from src.database.models import AgentTeam
+from src.database.models import UserObservation
+from src.services.user_observation_service import UserObservationService, get_user_observation_service
+from src.utils.tenant_context import get_tenant_context, set_tenant_context
+from src.utils.data_models import FailureReport
+from src.core.exceptions import TeamExecutionError
+from src.utils.llm_loader import get_gemini_llm
+# from src.agents.Orchestrator.team_lead_prompt import get_team_lead_prompt  # Commented out for testing
+# from src.agents.Orchestrator.orchestrator_agent import create_orchestrator_agent  # Circular import
+from src.tools.tool_manager import get_tool_manager
+from src.utils.input_sanitization import InputSanitizer
+from src.core.celery import celery_app
+from sqlalchemy import text
+from src.tools.confirm_action_tool import ConfirmActionTool
+import json
+
+logger = logging.getLogger(__name__)
+
+
+def create_orchestrator_agent(llm, tenant_id: int, job_id: str, user_id: int = None) -> Dict[str, Any]:
+    """
+    Create a platform orchestrator agent with user observations integration.
+
+    Args:
+        llm: Language model to use
+        tenant_id: Tenant ID for security
+        job_id: Job ID for tracing
+        user_id: User ID for personalization (optional)
+
+    Returns:
+        Dict with 'ainvoke' method for agent execution
+    """
+    try:
+        # Get user observation service
+        observation_service = get_user_observation_service()
+
+        # Load user observations if user_id provided
+        user_context = ""
+        if user_id:
+            user_context = observation_service.generate_system_instructions(user_id, tenant_id)
+
+        # Get available tools for the tenant
+        tool_mgr = get_tool_manager()
+        tools = tool_mgr.get_tools_for_tenant(tenant_id=tenant_id, job_id=job_id)
+
+        # Create base system prompt with user context
+        adaptation_section = f"""
+**ADAPTATION CAPABILITIES:**
+{user_context if user_context else """
+- Adapt communication style based on context and user preferences
+- Provide appropriate levels of technical detail
+- Maintain consistent and helpful tone throughout interactions"}"""
+
+        base_system_prompt = f"""You are the Platform Orchestrator, an advanced AI system that manages and executes complex multi-step goals across various domains.
+
+**CORE RESPONSIBILITIES:**
+- Analyze complex user goals and break them down into manageable tasks
+- Coordinate with specialist agents and tools to achieve objectives
+- Make strategic decisions about tool usage and execution paths
+- Handle errors gracefully and implement fallback strategies
+- Provide comprehensive progress updates and final results
+
+**EXECUTION STRATEGY:**
+1. **Goal Analysis:** Understand the user's objective and identify required capabilities
+2. **Tool Selection:** Choose the most appropriate tools for each task
+3. **Task Orchestration:** Execute tasks in the optimal sequence
+4. **Quality Assurance:** Verify results and ensure completeness
+5. **Result Synthesis:** Compile and present final outcomes
+
+**AVAILABLE TOOLS:**
+You have access to a comprehensive set of tools including:
+- Document processing and analysis tools
+- Communication and collaboration tools (Slack, Jira, Email)
+- Development and deployment tools
+- Research and analysis tools
+- File and data management tools
+
+**RESPONSE FORMAT:**
+Provide clear, actionable responses with:
+- Step-by-step progress updates
+- Tool usage explanations
+- Error handling and resolution
+- Final result summaries
+
+{adaptation_section}"""
+
+        # Create system message
+        system_message = base_system_prompt
+
+        # Create the ReAct agent
+        from langchain.agents import create_react_agent
+        from langchain_core.prompts import PromptTemplate
+
+        agent = create_react_agent(llm, tools, system_message)
+
+        # Return agent wrapper with ainvoke method
+        return {"ainvoke": agent.ainvoke}
+
+    except Exception as e:
+        logger.error(f"Error creating orchestrator agent: {e}")
+        # Return a minimal agent that can handle errors gracefully
+        async def error_agent(input_data):
+            return {
+                "output": f"Error creating orchestrator agent: {str(e)}. Please try again or contact support."
+            }
+        return {"ainvoke": error_agent}
+
+
+def get_team_lead_prompt(tools_formatted: str, tool_names: List[str], user_context: str = "") -> str:
+    """
+    Generate a system prompt for team lead agents.
+
+    Args:
+        tools_formatted: Formatted string of available tools
+        tool_names: List of tool names
+
+    Returns:
+        System prompt string for team lead agents
+    """
+    prompt = f"""You are a Team Lead Agent, responsible for coordinating a team of specialist agents to accomplish complex goals.
+
+**YOUR ROLE:**
+You lead a specialized team of AI agents, each with unique capabilities and tools. Your primary responsibility is to:
+- Analyze the user'''s goal and break it down into subtasks
+- Assign tasks to the most appropriate team members
+- Coordinate the execution and ensure quality results
+- Synthesize outputs from multiple agents into coherent final deliverables
+
+**TEAM CAPABILITIES:**
+You have access to the following tools and resources:
+{tools_formatted}
+
+**EXECUTION STRATEGY:**
+1. **Goal Analysis:** Understand the user'''s objective and identify required expertise
+2. **Task Breakdown:** Divide the goal into manageable subtasks
+3. **Team Coordination:** Delegate tasks to appropriate specialists
+4. **Quality Control:** Review outputs and ensure they meet standards
+5. **Synthesis:** Combine results into a unified, polished deliverable
+
+**RESPONSE FORMAT:**
+- Provide clear step-by-step progress updates
+- Explain your reasoning for task assignments
+- Include intermediate results and final synthesis
+- Handle errors and implement contingency plans
+
+**COORDINATION PRINCIPLES:**
+- Leverage each team member'''s strengths
+- Maintain clear communication and progress tracking
+- Ensure all aspects of the goal are addressed
+- Deliver high-quality, comprehensive results
+
+**AVAILABLE TOOLS:**
+{"', '".join(tool_names)}
+
+Use these tools strategically to accomplish the user'''s goal efficiently and effectively.
+
+**USER PERSONALIZATION:**
+{user_context if user_context else "Adapt communication style based on context and user preferences when available."}"""
+
+    return prompt
+
+
+
+class GoalOrchestrator:
+    """Enhanced goal orchestrator with caching integration"""
+    
+    def __init__(self):
+        self.cache_manager = get_cache_manager()
+        self.cache_invalidator = get_cache_invalidator()
+        self.db = get_db()
+        self.observation_service = get_user_observation_service()
+    
+    async def orchestrate_goal(self, goal_description: str, project_id: str, user_id: int = None) -> Dict[str, Any]:
+        """
+        Orchestrate goal execution with caching integration and user observation learning
+
+        Args:
+            goal_description: Description of the goal to achieve
+            project_id: Project identifier
+            user_id: User ID for personalization and observation recording
+
+        Returns:
+            Dict: Job execution result
+        """
+        try:
+            # Generate cache key for this goal
+            cache_key = f"goal_orchestration:{project_id}:{hash(goal_description)}"
+            
+            # Check cache first
+            cached_result = await self.cache_manager.get_agent_response(cache_key)
+            if cached_result:
+                logger.info(f"Returning cached result for goal: {goal_description}")
+                return cached_result
+            
+            # If not cached, proceed with orchestration
+            job = await self._create_job(goal_description, project_id, user_id)
+
+            # Record initial observation
+            user_id = job.user_id
+            tenant_id = job.tenant_id
+            initial_interaction = {
+                'goal_description': goal_description,
+                'project_id': project_id,
+                'start_time': datetime.utcnow()
+            }
+
+            try:
+                # Execute goal orchestration
+                result = await self._execute_goal_orchestration(job, user_id, tenant_id)
+                
+                # Cache the result
+                await self.cache_manager.set_agent_response(
+                    cache_key, 
+                    result, 
+                    expire=3600  # Cache for 1 hour
+                )
+                
+                # Increment tenant active seconds
+                await increment_tenant_active_seconds(get_tenant_context())
+
+                # Record successful execution observation
+                success_interaction = {
+                    'response_content': result.get('output', ''),
+                    'success_indicators': {'success': True},
+                    'tools_used': [],  # Will be populated by execution trace analysis
+                    'approaches_used': ['orchestrator_execution'],
+                    'response_time': (datetime.utcnow() - job.created_at).total_seconds(),
+                    'follow_up_count': 0,
+                    'content': job.goal_description
+                }
+                try:
+                    self.observation_service.record_interaction(user_id, tenant_id, success_interaction)
+                except Exception as e:
+                    logger.warning(f"Failed to record success observation: {e}")
+
+                return result
+                
+            except Exception as e:
+                # Record failure observation
+                failure_interaction = {
+                    'response_content': f'Error: {str(e)}',
+                    'success_indicators': {'success': False},
+                    'tools_used': [],
+                    'approaches_used': ['orchestrator_execution_failed'],
+                    'response_time': (datetime.utcnow() - job.created_at).total_seconds(),
+                    'follow_up_count': 0,
+                    'content': job.goal_description
+                }
+                try:
+                    self.observation_service.record_interaction(user_id, tenant_id, failure_interaction)
+                except Exception as obs_error:
+                    logger.warning(f"Failed to record failure observation: {obs_error}")
+
+                # On failure, invalidate related cache
+                await self.cache_invalidator.invalidate_project(project_id)
+                raise e
+                
+        except Exception as e:
+            logger.error(f"Error orchestrating goal: {e}")
+            raise
+    
+    async def _create_job(self, goal_description: str, project_id: str, user_id: int = None) -> Job:
+        """Create a new job record with user observation integration"""
+        try:
+            # Get tenant_id from context
+            tenant_id = get_tenant_context()
+
+            job = Job(
+                goal_description=goal_description,
+                project_id=project_id,
+                user_id=user_id,
+                tenant_id=tenant_id,
+                status="RUNNING",
+                created_at=datetime.utcnow()
+            )
+            self.db.add(job)
+            self.db.commit()
+            self.db.refresh(job)
+            return job
+        except Exception as e:
+            logger.error(f"Error creating job: {e}")
+            raise
+    
+    async def _execute_goal_orchestration(self, job: Job, user_id: int, tenant_id: int) -> Dict[str, Any]:
+        """Execute the goal orchestration with optional Team-Specific Orchestrator and escalation."""
+        try:
+            # Determine team context (if any)
+            job_metadata = job.get_job_metadata() or {}
+            agent_team_id: Optional[str] = job_metadata.get("agent_team_id")
+            tenant_id: int = job.tenant_id
+            job_id: str = job.job_id
+
+            llm_pro = get_gemini_llm(model_tier='pro')
+            tool_mgr = get_tool_manager()
+
+            if agent_team_id:
+                # Load sandboxed team tools
+                team_tools = tool_mgr.get_tools_for_agent_team(agent_team_id=agent_team_id, tenant_id=tenant_id, job_id=job_id)
+
+                # If no tools are available, fail fast and escalate
+                if not team_tools:
+                    raise TeamExecutionError(FailureReport(
+                        last_thought="No tools available to achieve the goal in team sandbox.",
+                        last_action="initialize_team_tools",
+                        observation="ToolManager returned zero tools for the team",
+                        trace="[]",
+                        reason="TEAM_SANDBOX_NO_TOOLS",
+                        job_id=job_id,
+                        tenant_id=tenant_id
+                    ))
+
+                # Build Team Lead prompt with user context
+                detailed_tool_descriptions = [f"**{t.name}**: {getattr(t, 'description', 'No description available')}" for t in team_tools]
+                tools_formatted = "\n".join([f"- {desc}" for desc in detailed_tool_descriptions])
+                tool_names = [t.name for t in team_tools]
+                user_context = self.observation_service.generate_system_instructions(user_id, tenant_id) if user_id else ""
+                team_prompt = get_team_lead_prompt(tools_formatted=tools_formatted, tool_names=tool_names, user_context=user_context)
+
+                # Create team-specific orchestrator
+                team_agent = create_react_agent(llm_pro, team_tools, team_prompt)
+
+                try:
+                    output = await team_agent.ainvoke({
+                        "input": job.get_input_data().get("goal", job.goal_description),
+                        "job_id": job_id,
+                        "tenant_id": tenant_id
+                    })
+
+                    # Detect failure pattern emitted by Team Lead and escalate
+                    output_text = (
+                        getattr(output, 'return_values', {}).get('output')
+                        if hasattr(output, 'return_values') else str(output)
+                    ) or ""
+                    if isinstance(output_text, str) and "Failure Report:" in output_text:
+                        try:
+                            json_part = output_text.split("Failure Report:", 1)[1].strip()
+                            # Remove leading formatting if any (e.g., code fences)
+                            json_part = json_part.strip('`\n ')
+                            fr = FailureReport.model_validate_json(json_part)
+                            fr.job_id = job_id
+                            fr.tenant_id = tenant_id
+                        except Exception:
+                            fr = FailureReport(
+                                last_thought="Unknown",
+                                last_action="Unknown",
+                                observation="Unknown",
+                                trace="[]",
+                                reason="TEAM_REPORTED_FAILURE",
+                                job_id=job_id,
+                                tenant_id=tenant_id
+                            )
+                        raise TeamExecutionError(fr)
+
+                    # If no failure reported, consider success
+                    job.update_status(JobStatus.COMPLETED)
+                    self.db.commit()
+                    return {"job_id": job_id, "success": True, "output": output_text}
+
+                except TeamExecutionError as e:
+                    # Build augmented goal and escalate to Platform Orchestrator
+                    failure: FailureReport = e.failure_report
+                    # Record failure trace step (DB)
+                    try:
+                        step_num = (self.db.query(ExecutionTraceStep)
+                            .filter(ExecutionTraceStep.job_id == job_id)
+                            .count()) + 1
+                        failure_step = ExecutionTraceStep(
+                            job_id=job_id,
+                            tenant_id=tenant_id,
+                            step_number=step_num,
+                            step_type=StepType.THOUGHT,
+                            thought=f"Team Lead failure detected. Reason: {failure.reason}"
+                        )
+                        self.db.add(failure_step)
+                        self.db.commit()
+
+                        # Enable observation recording for this trace step
+                        if user_id:
+                            ExecutionTraceStep.enable_observation_recording(user_id, tenant_id)
+                            failure_step.after_creation()
+                    except Exception:
+                        pass
+                    augmented_goal = (
+                        f"Escalation: Team Lead failed to complete the goal. Analyze the failure report and re-plan.\n\n"
+                        f"Original Goal: {job.get_input_data().get('goal', job.goal_description)}\n\n"
+                        f"Failure Report (JSON): {failure.model_dump_json()}\n\n"
+                        f"Your task: Identify root cause and create a new plan leveraging the full toolset. Then execute to completion."
+                    )
+
+                    platform = create_orchestrator_agent(llm_pro, tenant_id=tenant_id, job_id=job_id, user_id=user_id)
+                    escalated = await platform["ainvoke"]({
+                        "input": augmented_goal,
+                        "job_id": job_id,
+                        "tenant_id": tenant_id
+                    })
+
+                    # Self-heal: confirm and update failing agent definition if a new definition is provided
+                    try:
+                        output_text = escalated.get("output") if isinstance(escalated, dict) else str(escalated)
+                        new_def = None
+                        try:
+                            parsed = json.loads(output_text)
+                            new_def = parsed.get("new_agent_definition")
+                            final_output = parsed.get("final_output")
+                        except Exception:
+                            new_def = None
+                            final_output = output_text
+
+                        if new_def and isinstance(new_def, dict):
+                            # Ask for user confirmation
+                            confirm_tool = ConfirmActionTool()
+                            confirm_res = await confirm_tool.execute({
+                                "action_description": f"The platform designed an improved version of your agent '{new_def.get('name','unknown')}'. Do you approve this update?",
+                                "action_parameters": {"agent_name": new_def.get("name")},
+                                "urgency_level": "medium"
+                            })
+                            if getattr(confirm_res, "success", False) and confirm_res.data.get("confirmed"):
+                                with session_scope() as session:
+                                    failing_agent = session.query(CustomAgentDefinition).filter(
+                                        CustomAgentDefinition.tenant_id == tenant_id,
+                                        CustomAgentDefinition.name == new_def.get("name")
+                                    ).first()
+                                    if failing_agent and not failing_agent.is_system_agent:
+                                        failing_agent.system_prompt = new_def.get("system_prompt", failing_agent.system_prompt)
+                                        tool_names = new_def.get("tool_names") or []
+                                        if isinstance(tool_names, list):
+                                            failing_agent.set_tool_names(tool_names)
+                                        failing_agent.update_timestamp()
+                                        session.commit()
+                                        # Record trace step
+                                        try:
+                                            step_num = (self.db.query(ExecutionTraceStep)
+                                                .filter(ExecutionTraceStep.job_id == job_id)
+                                                .count()) + 1
+                                            heal_step = ExecutionTraceStep(
+                                                job_id=job_id,
+                                                tenant_id=tenant_id,
+                                                step_number=step_num,
+                                                step_type=StepType.ACTION,
+                                                action="self_heal_update_applied",
+                                                observation=f"Updated agent '{failing_agent.name}' definition"
+                                            )
+                                            self.db.add(heal_step)
+                                            self.db.commit()
+
+                                            # Enable observation recording for this trace step
+                                            if user_id:
+                                                ExecutionTraceStep.enable_observation_recording(user_id, tenant_id)
+                                                heal_step.after_creation()
+                                        except Exception:
+                                            pass
+                    except Exception:
+                        pass
+
+                    # Record re-plan trace step (DB)
+                    try:
+                        step_num = (self.db.query(ExecutionTraceStep)
+                            .filter(ExecutionTraceStep.job_id == job_id)
+                            .count()) + 1
+                        replan_step = ExecutionTraceStep(
+                            job_id=job_id,
+                            tenant_id=tenant_id,
+                            step_number=step_num,
+                            step_type=StepType.THOUGHT,
+                            thought="Platform Orchestrator re-plan executed after escalation."
+                        )
+                        self.db.add(replan_step)
+                        self.db.commit()
+
+                        # Enable observation recording for this trace step
+                        if user_id:
+                            ExecutionTraceStep.enable_observation_recording(user_id, tenant_id)
+                            replan_step.after_creation()
+                    except Exception:
+                        pass
+
+                    job.update_status(JobStatus.COMPLETED)
+                    self.db.commit()
+                    return {"job_id": job_id, "success": True, "output": escalated.get("output") if isinstance(escalated, dict) else str(escalated)}
+
+            # Default path: run Platform Orchestrator with default tools
+            platform = create_orchestrator_agent(llm_pro, tenant_id=tenant_id, job_id=job_id, user_id=user_id)
+            # Sanitize user-provided goal input
+            raw_goal = job.get_input_data().get("goal", job.goal_description)
+            try:
+                sanitized_goal = InputSanitizer.sanitize_string(raw_goal, max_length=10000)
+            except Exception:
+                sanitized_goal = raw_goal
+            result = await platform["ainvoke"]({
+                "input": sanitized_goal,
+                "job_id": job_id,
+                "tenant_id": tenant_id
+            })
+
+            job.update_status(JobStatus.COMPLETED)
+            self.db.commit()
+            return {"job_id": job_id, "success": True, "output": result.get("output") if isinstance(result, dict) else str(result)}
+
+        except Exception as e:
+            job.update_status(JobStatus.FAILED)
+            job.error_message = str(e)
+            self.db.commit()
+            raise
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
+async def orchestrate_goal_task(self, job_id: str, goal_description: str, context: Optional[str], output_format_instructions: Optional[str], user_id: int, tenant_id: int, agent_team_id: Optional[str] = None) -> Dict[str, Any]:
+    """Celery task entry for executing a goal orchestration job."""
+    
+    # THIS IS THE CRITICAL ADDITION: Set the context for the lifetime of this worker task.
+    set_tenant_context(tenant_id)
+    
+    logger.info(f"Starting orchestrate_goal_task for job_id={job_id} team={agent_team_id}")
+    db = get_db()
+    # The `after_begin` event listener will now automatically handle setting
+    # `SET LOCAL app.tenant_id` for every transaction within this task.
+    try:
+        job: Optional[Job] = db.query(Job).filter(Job.job_id == job_id, Job.tenant_id == tenant_id).first()
+        if not job:
+            # Create record if missing (fallback)
+            job = Job(
+                job_id=job_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                status=JobStatus.QUEUED,
+                job_type="execute_goal",
+            )
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+
+        # Update input and metadata
+        input_data = job.get_input_data() or {}
+        input_data.update({
+            "goal": goal_description,
+            "context": context,
+            "output_format_instructions": output_format_instructions,
+            "user_id": user_id,
+            "tenant_id": tenant_id
+        })
+        job.set_input_data(input_data)
+        if agent_team_id:
+            metadata = job.get_job_metadata() or {}
+            metadata.update({"agent_team_id": agent_team_id})
+            job.set_job_metadata(metadata)
+        job.update_status(JobStatus.RUNNING)
+        db.commit()
+
+        orchestrator = GoalOrchestrator()
+        result = asyncio.get_event_loop().run_until_complete(orchestrator._execute_goal_orchestration(job, user_id, tenant_id))
+
+        # Schedule fine-tuning archival for successful jobs
+        if job.status == JobStatus.COMPLETED:
+            try:
+                from src.services.fine_tuning_manager import FineTuningDataManager
+                manager = FineTuningDataManager()
+
+                # Schedule archival with 24-hour delay to allow for any post-processing
+                archival_task_id = await manager.schedule_fine_tuning_archival(
+                    job_id=job_id,
+                    tenant_id=tenant_id,
+                    delay_hours=24
+                )
+
+                logger.info(f"Scheduled fine-tuning archival task {archival_task_id} for job {job_id}")
+
+                # Add archival task ID to result
+                if isinstance(result, dict):
+                    result['_fine_tuning_archival'] = {
+                        'task_id': archival_task_id,
+                        'scheduled_for': (datetime.utcnow() + timedelta(hours=24)).isoformat()
+                    }
+
+            except Exception as archival_error:
+                logger.warning(f"Failed to schedule fine-tuning archival for job {job_id}: {archival_error}")
+                # Don't fail the main task if archival scheduling fails
+
+        return result
+
+    except Exception as e:
+        logger.error(f"orchestrate_goal_task failed for job_id={job_id}: {e}")
+        if job:
+            job.update_status(JobStatus.FAILED)
+            job.error_message = str(e)
+            db.commit()
+        raise
+    finally:
+        db.close()
+    
+    async def get_job_status(self, job_id: str) -> Dict[str, Any]:
+        """Get job status with caching"""
+        try:
+            # Check cache first
+            cache_key = f"job_status:{job_id}"
+            cached_status = await self.cache_manager.get_db_query(cache_key)
+            
+            if cached_status:
+                return cached_status
+            
+            # If not cached, query database
+            job = self.db.query(Job).filter(Job.id == job_id).first()
+            
+            if not job:
+                return {"error": "Job not found"}
+            
+            status = {
+                "job_id": job.id,
+                "status": job.status,
+                "goal_description": job.goal_description,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "error_message": job.error_message
+            }
+            
+            # Cache the result
+            await self.cache_manager.set_db_query(cache_key, status, expire=300)  # Cache for 5 minutes
+            
+            return status
+            
+        except Exception as e:
+            logger.error(f"Error getting job status: {e}")
+            return {"error": str(e)}
+    
+    async def update_project(self, project_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Update project with cache invalidation"""
+        try:
+            # Perform database update
+            # This is a simplified example - in reality, you'd query the project model
+            logger.info(f"Updating project {project_id} with updates: {updates}")
+            
+            # Invalidate project cache
+            await self.cache_invalidator.invalidate_project(project_id)
+            
+            return {"success": True, "project_id": project_id}
+            
+        except Exception as e:
+            logger.error(f"Error updating project: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_project_data(self, project_id: str) -> Dict[str, Any]:
+        """Get project data with caching"""
+        try:
+            # Check cache first
+            cache_key = f"project_data:{project_id}"
+            cached_data = await self.cache_manager.get_db_query(cache_key)
+            
+            if cached_data:
+                return cached_data
+            
+            # If not cached, query database
+            # This is a simplified example - in reality, you'd query the project model
+            project_data = {
+                "project_id": project_id,
+                "name": f"Project {project_id}",
+                "description": "Sample project data",
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            
+            # Cache the result
+            await self.cache_manager.set_db_query(cache_key, project_data, expire=600)  # Cache for 10 minutes
+            
+            return project_data
+            
+        except Exception as e:
+            logger.error(f"Error getting project data: {e}")
+            return {"error": str(e)}

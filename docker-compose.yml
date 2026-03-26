@@ -1,0 +1,57 @@
+services:
+  db:
+    image: public.ecr.aws/docker/library/postgres:15-alpine
+    container_name: etherion-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-etherion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-etherion}
+      POSTGRES_DB: ${POSTGRES_DB:-etherion}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: public.ecr.aws/docker/library/redis:7-alpine
+    container_name: etherion-redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    container_name: etherion-api
+    env_file:
+      - .env
+    environment:
+      - PORT=${PORT:-8080}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg2://etherion:etherion@db:5432/etherion}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - db
+
+  worker:
+    build: .
+    container_name: etherion-worker
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg2://etherion:etherion@db:5432/etherion}
+    command: ["python", "celery_worker.py"]
+    depends_on:
+      - redis
+      - db
+
+volumes:
+  pgdata:
+

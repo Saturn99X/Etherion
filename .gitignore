@@ -1,0 +1,243 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.cover
+.ipynb_checkpoints/
+
+# =============================================================================
+# Node / Frontend
+# =============================================================================
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# LobeChat upstream files not needed for builds
+frontend/lobechat-app/tests
+frontend/lobechat-app/public
+frontend/lobechat-app/next.config.js
+frontend/lobechat-app/next-env.d.ts
+frontend/lobechat-app/node_modules
+frontend/lobechat-app/e2e
+frontend/lobechat-app/changelog
+frontend/lobechat-app/apps/desktop/build
+frontend/lobechat-app/apps/desktop/node_modules
+frontend/lobechat-app/vendor
+frontend/lobechat-app/docker-compose.development.yml
+frontend/lobechat-app/docker-compose/
+frontend/lobechat-app/.github/
+frontend/lobechat-app/.husky/
+frontend/lobechat-app/__mocks__/
+frontend/lobechat-app/CHANGELOG.md
+frontend/lobechat-app/LICENSE
+frontend/lobechat-app/CODE_OF_CONDUCT.md
+frontend/lobechat-app/CONTRIBUTING.md
+frontend/lobechat-app/AGENTS.md
+frontend/lobechat-app/README.zh-CN.md
+frontend/lobechat-app/codecov.yml
+frontend/lobechat-app/netlify.toml
+frontend/lobechat-app/renovate.json
+frontend/lobechat-app/vercel.json
+frontend/lobechat-app/.changelogrc.cjs
+frontend/lobechat-app/.commitlintrc.cjs
+frontend/lobechat-app/.cursorindexingignore
+frontend/lobechat-app/.devcontainer/
+frontend/lobechat-app/.editorconfig
+frontend/lobechat-app/.eslintignore
+frontend/lobechat-app/.eslintrc.js
+frontend/lobechat-app/.i18nrc.js
+frontend/lobechat-app/.prettierignore
+frontend/lobechat-app/.prettierrc.cjs
+frontend/lobechat-app/.releaserc.cjs
+frontend/lobechat-app/.remarkrc.cjs
+frontend/lobechat-app/.remarkrc.mdx.js
+frontend/lobechat-app/.seorc.cjs
+frontend/lobechat-app/.stylelintignore
+frontend/lobechat-app/.stylelintrc.cjs
+frontend/lobechat-app/.gitignore
+frontend/lobechat-app/CLAUDE.md
+
+# =============================================================================
+# Go / TUI
+# =============================================================================
+tui/bin/
+
+# =============================================================================
+# Secrets and credentials  (NEVER commit these)
+# =============================================================================
+.env
+.env.local
+.env.*.local
+secrets/
+.secrets/
+*.secret
+secrets.txt
+*-key.json
+*-credentials.json
+service-account-*.json
+gcp-*.json
+tf-deployer-key.json
+ci-deployer-key.json
+.secrets.local.json
+pricing.env
+XBin/
+zbin/
+
+# =============================================================================
+# Databases and local state
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+dump.rdb
+celerybeat-schedule
+celerybeat.pid
+
+# =============================================================================
+# Build artifacts
+# =============================================================================
+build/
+dist/
+output/
+/output/
+site/
+docs/_build/
+/desktop/
+
+# =============================================================================
+# Logs  (keep Logs/Daily/README.md but ignore individual contribution logs)
+# =============================================================================
+*.log
+*.log.*
+Logs/Daily/*
+!Logs/Daily/README.md
+downloaded-logs-*.json
+*_logs.json
+jan17_*.json
+
+# =============================================================================
+# Temporary and OS files
+# =============================================================================
+tmp/
+temp/
+*.tmp
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# IDE and tools
+# =============================================================================
+.idea/
+.vscode/settings.json
+.kiro/
+.windsurf/
+.cursor/
+
+# =============================================================================
+# Terraform  (no longer used — kept for stale file safety)
+# =============================================================================
+.terraform/
+terraform/**/.terraform/
+**/.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.backup
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+backend.tf
+
+# =============================================================================
+# Internal / development-only directories
+# =============================================================================
+eth-main/
+billing_removal_*/
+backupx/
+backup_*/
+backup_agents_*/
+Archive/
+archive/
+Landing_Page/
+Google_mcp/
+cloudsql/
+google-cloud-sdk/
+cloud-sql-proxy
+Lobe_Chat/
+dev/
+
+# =============================================================================
+# Internal Z/ files (not for public consumption)
+# =============================================================================
+Z/Java/
+Z/ev.md
+Z/back_pb.md
+Z/DATABASE.md
+Z/TODO.md
+Z/CI/
+Z/Overview.md
+Z/bigquery-issues-assessment.md
+
+# =============================================================================
+# Scripts  (only exclude internal investigation/ops subdirs)
+# =============================================================================
+scripts/investigation/
+scripts/fixes/
+scripts/monitoring/
+scripts/opensource/
+
+# =============================================================================
+# Stray investigation scripts and one-off files
+# =============================================================================
+verify_gemini_3_global.py
+find_gemini_model.py
+find_exact_gemini_3.py
+find_gemini_3_global.py
+sdk_model_test.py
+seed_all_secrets.py
+create_payload.py
+check_mappers.py
+codebase_to_txt.py
+codebase_to_txt_v2.py
+ROOT_CAUSE_ANALYSIS.md
+SUPER_INVESTIGATION_*.md
+INTEGRATION_COMPLETE.md
+SECTION_6_ASYNC_JOBS.md
+SECTION_8_REAL_TIME_UPDATES.md
+SECURITY_DOCUMENTATION.md
+tf.txt
+l.txt
+lll.txt
+tmodf.txt
+sanitization_output.txt
+migration_logs.txt
+mcp-manifest.json
+alembic.ini
+ingest_payload.json
+build_*.json
+x.pdf
+codebase.txt
+Docs/etherion_docs/lobe_docs/
+Zogs/

@@ -1,0 +1,89 @@
+# Global Docker ignore for repo root context
+
+# VCS
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+.env
+.env.*
+*.egg-info
+
+# Node/Frontend (entire frontend excluded for backend images)
+frontend/
+Landing_Page/
+**/node_modules
+**/.next
+**/.turbo
+**/.pnpm-store
+
+# Terraform (not needed in runtime)
+terraform/
+.terraform
+**/.terraform
+.terraform.lock.hcl
+*.tfstate*
+*.tfplan
+
+# Tests and development
+tests/
+scripts/
+*.test.py
+pytest.ini
+.pytest_cache
+
+# Documentation (not needed in runtime)
+Docs/
+Z/
+Logs/
+*.md
+!requirements*.txt
+
+# Backups and archives
+backups/
+Archive/
+*.dump
+*.sql
+*.bak
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+.cursor
+.windsurf
+.ropeproject
+
+# Build artifacts
+**/dist
+**/build
+**/coverage
+
+# Large files not needed in images
+*.pdf
+*.csv
+*.json
+!mcp-manifest.json
+*.txt
+!requirements*.txt
+entropy.pdf
+ingest_payload.json
+ui_messages.json
+customagentdefinition.csv
+
+# Misc
+tmp/
+logs/
+cloudsql/
+secrets/
+Google_mcp/
+XBin/
+desktop/
+dev/
+

@@ -1,0 +1,18 @@
+---
+- name: Install HAProxy
+  package:
+    name: haproxy
+    state: present
+
+- name: Deploy HAProxy config
+  copy:
+    src: "{{ playbook_dir }}/../haproxy/haproxy.cfg"
+    dest: /etc/haproxy/haproxy.cfg
+    mode: '0644'
+  notify: restart haproxy
+
+- name: Enable and start HAProxy
+  systemd:
+    name: haproxy
+    state: started
+    enabled: true

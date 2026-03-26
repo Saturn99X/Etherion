@@ -1,0 +1,20 @@
+{
+  "ignition": { "version": "3.4.0" },
+  "passwd": {
+    "users": [
+      {
+        "name": "root",
+        "sshAuthorizedKeys": []
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "path": "/etc/hostname",
+        "contents": { "source": "data:,etherion-node" },
+        "mode": 420
+      }
+    ]
+  }
+}

@@ -1,0 +1,470 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Removed @custom-variant (non-standard at-rule not recognized by CSS linters) */
+
+:root {
+  /* Light theme colors */
+  --background: oklch(0.98 0.01 270);
+  --foreground: oklch(0.15 0.02 270);
+  --card: oklch(0.96 0.01 270);
+  --card-foreground: oklch(0.15 0.02 270);
+  --popover: oklch(0.96 0.01 270);
+  --popover-foreground: oklch(0.15 0.02 270);
+  --primary: oklch(0.25 0.05 270);
+  --primary-foreground: oklch(0.98 0.01 270);
+  --secondary: oklch(0.92 0.02 270);
+  --secondary-foreground: oklch(0.25 0.05 270);
+  --muted: oklch(0.92 0.02 270);
+  --muted-foreground: oklch(0.45 0.02 270);
+  --accent: oklch(0.92 0.02 270);
+  --accent-foreground: oklch(0.25 0.05 270);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.88 0.02 270);
+  --input: oklch(0.88 0.02 270);
+  --ring: oklch(0.45 0.02 270);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.96 0.01 270);
+  --sidebar-foreground: oklch(0.15 0.02 270);
+  --sidebar-primary: oklch(0.25 0.05 270);
+  --sidebar-primary-foreground: oklch(0.98 0.01 270);
+  --sidebar-accent: oklch(0.92 0.02 270);
+  --sidebar-accent-foreground: oklch(0.25 0.05 270);
+  --sidebar-border: oklch(0.88 0.02 270);
+  --sidebar-ring: oklch(0.45 0.02 270);
+}
+
+/* Added dark theme color overrides */
+.dark {
+  --background: oklch(0.08 0.02 270);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.12 0.03 270);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.12 0.03 270);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.15 0.03 270);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.15 0.03 270);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.15 0.03 270);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.2 0.05 270);
+  --input: oklch(0.15 0.03 270);
+  --ring: oklch(0.439 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.12 0.03 270);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.15 0.03 270);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.2 0.05 270);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+/* Removed @theme inline block (non-standard at-rule causing lint errors) */
+
+/* Updated background to support both light and dark themes */
+body {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 50%, #ddeeff 100%);
+  min-height: 100vh;
+  position: relative;
+}
+
+.dark body {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+}
+
+/* Fixed glass effects to have proper contrast and visibility in light theme */
+.glass {
+  background: rgba(240, 248, 255, 0.95);
+  backdrop-filter: blur(40px) saturate(300%) brightness(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(300%) brightness(1.1);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), inset 0 2px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  position: relative;
+  color: var(--foreground) !important;
+}
+
+.dark .glass {
+  background: rgba(15, 15, 35, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 0 1px
+    rgba(255, 255, 255, 0.05);
+}
+
+.glass::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.08) 0%,
+    transparent 30%,
+    rgba(0, 0, 0, 0.04) 70%,
+    transparent 100%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.dark .glass::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 70%,
+    transparent 100%
+  );
+}
+
+/* Updated glass variants with better contrast for light theme */
+.glass-strong {
+  background: rgba(240, 248, 255, 0.98);
+  backdrop-filter: blur(50px) saturate(350%) brightness(1.2);
+  -webkit-backdrop-filter: blur(50px) saturate(350%) brightness(1.2);
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.2), inset 0 3px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.15);
+  color: var(--foreground) !important;
+}
+
+.dark .glass-strong {
+  background: rgba(15, 15, 35, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8), inset 0 3px 0 rgba(255, 255, 255, 0.4), 0 0 0 1px
+    rgba(255, 255, 255, 0.08);
+}
+
+.glass-subtle {
+  background: rgba(240, 248, 255, 0.9);
+  backdrop-filter: blur(30px) saturate(250%) brightness(1.05);
+  -webkit-backdrop-filter: blur(30px) saturate(250%) brightness(1.05);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  color: var(--foreground) !important;
+}
+
+.dark .glass-subtle {
+  background: rgba(15, 15, 35, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 0 1px
+    rgba(255, 255, 255, 0.03);
+}
+
+.glass-card {
+  background: rgba(240, 248, 255, 0.96);
+  backdrop-filter: blur(35px) saturate(280%) brightness(1.1);
+  -webkit-backdrop-filter: blur(35px) saturate(280%) brightness(1.1);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 15px 55px rgba(0, 0, 0, 0.15), inset 0 2px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  color: var(--foreground) !important;
+}
+
+.dark .glass-card {
+  background: rgba(15, 15, 35, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 15px 55px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 0 0 1px
+    rgba(255, 255, 255, 0.06);
+}
+
+/* Added missing glass-button and glass-container classes that components are using */
+.glass-button {
+  background: rgba(240, 248, 255, 0.95);
+  backdrop-filter: blur(30px) saturate(280%) brightness(1.1);
+  -webkit-backdrop-filter: blur(30px) saturate(280%) brightness(1.1);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  position: relative;
+  color: var(--foreground) !important;
+  transition: all 0.3s ease;
+}
+
+.glass-button:hover {
+  background: rgba(240, 248, 255, 1);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.dark .glass-button {
+  background: rgba(15, 15, 35, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 1px
+    rgba(255, 255, 255, 0.05);
+  color: var(--foreground) !important;
+}
+
+.dark .glass-button:hover {
+  background: rgba(15, 15, 35, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 1px
+    rgba(255, 255, 255, 0.08);
+}
+
+.glass-container {
+  background: rgba(240, 248, 255, 0.92);
+  backdrop-filter: blur(25px) saturate(240%) brightness(1.05);
+  -webkit-backdrop-filter: blur(25px) saturate(240%) brightness(1.05);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  color: var(--foreground) !important;
+  padding: 1.5rem;
+  border-radius: 1rem;
+}
+
+.dark .glass-container {
+  background: rgba(15, 15, 35, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 0 1px
+    rgba(255, 255, 255, 0.04);
+  color: var(--foreground) !important;
+}
+
+/* Updated button classes with better visibility for light theme */
+.iridescent {
+  background: rgba(240, 248, 255, 0.95);
+  backdrop-filter: blur(30px) saturate(280%) brightness(1.1);
+  -webkit-backdrop-filter: blur(30px) saturate(280%) brightness(1.1);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  position: relative;
+  color: var(--foreground) !important;
+}
+
+.dark .iridescent {
+  background: rgba(15, 15, 35, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 1px
+    rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.iridescent::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.08) 0%, transparent 40%, rgba(0, 0, 0, 0.04) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.dark .iridescent::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, transparent 40%, rgba(255, 255, 255, 0.06) 100%);
+}
+
+.iridescent-subtle {
+  background: rgba(240, 248, 255, 0.92);
+  backdrop-filter: blur(25px) saturate(240%) brightness(1.05);
+  -webkit-backdrop-filter: blur(25px) saturate(240%) brightness(1.05);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  color: var(--foreground) !important;
+}
+
+.dark .iridescent-subtle {
+  background: rgba(15, 15, 35, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+/* Updated hover effects with better contrast for light theme */
+.glass-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-hover:hover {
+  background: rgba(240, 248, 255, 1);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.dark .glass-hover:hover {
+  background: rgba(15, 15, 35, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.5), 0 0 0 1px
+    rgba(255, 255, 255, 0.08);
+}
+
+/* Updated glow effects for both themes */
+.glow {
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+.dark .glow {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.glow-subtle {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.dark .glow-subtle {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.glow-hover {
+  transition: box-shadow 0.3s ease;
+}
+
+.glow-hover:hover {
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+}
+
+.dark .glow-hover:hover {
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+}
+
+/* Updated scrollbars for both themes */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Updated selection styling for both themes */
+::selection {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--foreground);
+}
+
+.dark ::selection {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--foreground);
+}
+
+.dark ::-moz-selection {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* Updated focus states for both themes */
+.focus-chromatic:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.dark .focus-chromatic:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+/* Intentionally do not override button text color globally.
+   Let shadcn/ui variants control text color (e.g., text-primary-foreground).
+   This prevents invisible text on dark buttons in light theme. */
+
+/* Fix primary button text specifically */
+.bg-primary,
+.bg-primary * {
+  color: var(--primary-foreground) !important;
+}
+
+/* Fix secondary button text */
+.bg-secondary,
+.bg-secondary * {
+  color: var(--secondary-foreground) !important;
+}
+
+/* Fix muted button text */
+.bg-muted,
+.bg-muted * {
+  color: var(--muted-foreground) !important;
+}
+
+/* Fix accent button text */
+.bg-accent,
+.bg-accent * {
+  color: var(--accent-foreground) !important;
+}
+
+/* Override any text-white classes to use proper semantic colors */
+.text-white {
+  color: var(--foreground) !important;
+}
+
+.dark .text-white {
+  color: var(--foreground) !important;
+}
+
+/* Fix any remaining hardcoded white text */
+[class*="text-white"] {
+  color: var(--foreground) !important;
+}
+
+/* Ensure all glass elements use proper text colors */
+.glass,
+.glass-strong,
+.glass-subtle,
+.glass-card,
+.iridescent,
+.iridescent-subtle {
+  color: var(--foreground);
+}
+
+/* Replace Tailwind @apply directives with standard CSS to satisfy linters */
+*, *::before, *::after {
+  border-color: var(--border);
+}
+body {
+  color: var(--foreground);
+}
+
+/* Global button text overrides (PB.md §8)
+   Ensure readable contrast across variants using the built-in data-slot on Button */
+:root[class*='dark'] [data-slot="button"] {
+  color: #ffffff !important;
+}
+
+:root:not([class*='dark']) [data-slot="button"] {
+  color: #000000 !important;
+}

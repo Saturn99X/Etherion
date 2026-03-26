@@ -1,0 +1,63 @@
+---
+- name: Download MinIO binary
+  get_url:
+    url: "https://dl.min.io/server/minio/release/linux-amd64/minio"
+    dest: /usr/local/bin/minio
+    mode: '0755'
+
+- name: Create minio user
+  user:
+    name: minio-user
+    system: true
+    shell: /usr/sbin/nologin
+
+- name: Create MinIO data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: minio-user
+    group: minio-user
+    mode: '0750'
+  loop:
+    - /var/lib/minio/data
+    - /etc/minio
+
+- name: Configure MinIO credentials (from Vault)
+  template:
+    src: minio-credentials.j2
+    dest: /etc/minio/minio-credentials
+    owner: minio-user
+    group: minio-user
+    mode: '0600'
+
+- name: Create MinIO systemd service
+  copy:
+    content: |
+      [Unit]
+      Description=MinIO Object Storage
+      After=network.target
+
+      [Service]
+      User=minio-user
+      EnvironmentFile=/etc/minio/minio-credentials
+      ExecStart=/usr/local/bin/minio server /var/lib/minio/data --console-address :9001
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/minio.service
+  notify: reload systemd
+
+- name: Enable and start MinIO
+  systemd:
+    name: minio
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Create default buckets
+  command: "mc mb --ignore-existing local/{{ item }}"
+  loop: "{{ minio_buckets }}"
+  environment:
+    MC_HOST_local: "http://{{ minio_root_user }}:{{ minio_root_password }}@localhost:{{ minio_port }}"
