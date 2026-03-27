@@ -746,8 +746,7 @@ class Mutation(AuthMutation):
         if description is not None:
             team.description = description
         if pre_approved_tool_names is not None:
-            from src.database.models.agent_team import AgentTeam as AT
-            team.pre_approved_tool_names = AT.serialize_tool_names(pre_approved_tool_names)
+            team.set_pre_approved_tool_names(pre_approved_tool_names)
 
         db_session.add(team)
         if isinstance(db_session, AsyncSession):
@@ -1228,6 +1227,15 @@ class Mutation(AuthMutation):
         tsm = TenantSecretsManager()
         ok = await tsm.store_secret(str(current_user.tenant_id), service_name, "credentials", json.dumps(parsed))
         status = "connected" if ok else "error"
+
+        if ok:
+            try:
+                from src.tasks.vendor_kb_sync import vendor_kb_sync_task
+                provider = service_name.replace("mcp_", "")
+                vendor_kb_sync_task.delay(str(current_user.tenant_id), provider)
+            except Exception:
+                pass  # non-fatal
+
         return IntegrationStatus(serviceName=service_name, status=status, validationErrors=None if ok else ["Failed to store credentials"])  # type: ignore
 
     @strawberry.mutation
@@ -2525,7 +2533,12 @@ class Mutation(AuthMutation):
                 is_active=True,
             )
             new_team.set_custom_agent_ids(agent_ids)
-            new_team.set_pre_approved_tool_names(blueprint.get("tool_requirements", []))
+            # Use caller-supplied tool list when provided; fall back to blueprint selection.
+            explicit_tools = [t for t in (team_input.pre_approved_tool_names or []) if t and str(t).strip()]
+            if explicit_tools:
+                new_team.set_pre_approved_tool_names(explicit_tools)
+            else:
+                new_team.set_pre_approved_tool_names(blueprint.get("tool_requirements", []))
 
             db_session.add(new_team)
 

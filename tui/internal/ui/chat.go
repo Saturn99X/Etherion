@@ -9,19 +9,19 @@ import (
 	"github.com/etherion-ai/etherion/tui/internal/api"
 )
 
-// ChatModel shows threads on the left and jobs for the selected thread on the right.
+// ChatModel shows threads on the left and messages for the selected thread on the right.
 type ChatModel struct {
-	threads        []api.Thread
-	jobs           []api.Job
-	threadCursor   int
-	jobCursor      int
-	focusLeft      bool // true = left pane focused
-	err            string
-	apiClient      *api.Client
+	threads      []api.Thread
+	messages     []api.Message
+	threadCursor int
+	msgCursor    int
+	focusLeft    bool
+	err          string
+	apiClient    *api.Client
 }
 
-func NewChatModel() ChatModel {
-	return ChatModel{focusLeft: true}
+func NewChatModel(apiClient *api.Client) ChatModel {
+	return ChatModel{focusLeft: true, apiClient: apiClient}
 }
 
 func (m ChatModel) Init() tea.Cmd { return nil }
@@ -41,11 +41,11 @@ func (m ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
 			if m.focusLeft {
 				if m.threadCursor > 0 {
 					m.threadCursor--
-					cmds = append(cmds, m.loadJobs())
+					cmds = append(cmds, m.loadMessages())
 				}
 			} else {
-				if m.jobCursor > 0 {
-					m.jobCursor--
+				if m.msgCursor > 0 {
+					m.msgCursor--
 				}
 			}
 
@@ -53,11 +53,11 @@ func (m ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
 			if m.focusLeft {
 				if m.threadCursor < len(m.threads)-1 {
 					m.threadCursor++
-					cmds = append(cmds, m.loadJobs())
+					cmds = append(cmds, m.loadMessages())
 				}
 			} else {
-				if m.jobCursor < len(m.jobs)-1 {
-					m.jobCursor++
+				if m.msgCursor < len(m.messages)-1 {
+					m.msgCursor++
 				}
 			}
 
@@ -74,19 +74,18 @@ func (m ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
 			break
 		}
 		m.err = ""
-		// Try to decode threads.
-		if threads, ok := msg.data["threads"]; ok {
+		if threads, ok := msg.data["listThreads"]; ok {
 			m.threads = decodeThreads(threads)
 			if len(m.threads) > 0 {
 				if m.threadCursor >= len(m.threads) {
 					m.threadCursor = len(m.threads) - 1
 				}
-				cmds = append(cmds, m.loadJobs())
+				cmds = append(cmds, m.loadMessages())
 			}
 		}
-		// Try to decode jobs.
-		if jobs, ok := msg.data["jobs"]; ok {
-			m.jobs = decodeJobs(jobs)
+		if msgs, ok := msg.data["listMessages"]; ok {
+			m.messages = decodeMessages(msgs)
+			m.msgCursor = 0
 		}
 	}
 
@@ -99,20 +98,20 @@ func (m *ChatModel) loadThreads() tea.Cmd {
 	}
 	client := m.apiClient
 	return func() tea.Msg {
-		q := `query ListThreads { threads { id title created_at message_count } }`
+		q := `query { listThreads { threadId title createdAt } }`
 		resp, err := client.GraphQL(context.Background(), q, nil)
 		return graphqlResultMsg{data: resp.Data, tab: tabChat, err: err}
 	}
 }
 
-func (m *ChatModel) loadJobs() tea.Cmd {
+func (m *ChatModel) loadMessages() tea.Cmd {
 	if m.apiClient == nil || len(m.threads) == 0 {
 		return nil
 	}
 	client := m.apiClient
 	threadID := m.threads[m.threadCursor].ID
 	return func() tea.Msg {
-		q := `query ListJobs($threadId: ID!) { jobs(threadId: $threadId) { id status agent_team_name created_at } }`
+		q := `query ListMessages($threadId: String!) { listMessages(threadId: $threadId, limit: 50) { messageId role content createdAt } }`
 		vars := map[string]interface{}{"threadId": threadID}
 		resp, err := client.GraphQL(context.Background(), q, vars)
 		return graphqlResultMsg{data: resp.Data, tab: tabChat, err: err}
@@ -121,7 +120,7 @@ func (m *ChatModel) loadJobs() tea.Cmd {
 
 func (m ChatModel) View() string {
 	var sb strings.Builder
-	sb.WriteString(StyleHeader.Render("  Chat — Threads & Jobs") + "\n\n")
+	sb.WriteString(StyleHeader.Render("  Chat — Threads & Messages") + "\n\n")
 
 	if m.apiClient == nil {
 		sb.WriteString(StyleWarning.Render("  Connect to server first (tab 1)\n"))
@@ -135,11 +134,15 @@ func (m ChatModel) View() string {
 	leftWidth := 28
 	rightWidth := 44
 
-	// Left pane header.
 	leftHeader := "  Threads"
-	rightHeader := "  Jobs"
+	rightHeader := "  Messages"
 	if len(m.threads) > 0 {
-		rightHeader = fmt.Sprintf("  Jobs in %q", m.threads[m.threadCursor].Title)
+		t := m.threads[m.threadCursor]
+		title := t.Title
+		if len(title) > 20 {
+			title = title[:17] + "…"
+		}
+		rightHeader = fmt.Sprintf("  %q", title)
 	}
 
 	lh := StyleMuted.Render(leftHeader)
@@ -151,15 +154,17 @@ func (m ChatModel) View() string {
 	}
 
 	sb.WriteString(fmt.Sprintf("%-*s│  %s\n", leftWidth, lh, rh))
-	sb.WriteString(StyleMuted.Render(strings.Repeat("─", leftWidth) + "┼" + strings.Repeat("─", rightWidth)) + "\n")
+	sb.WriteString(StyleMuted.Render(strings.Repeat("─", leftWidth)+"┼"+strings.Repeat("─", rightWidth)) + "\n")
 
-	// Render rows.
 	threadLines := m.renderThreads(leftWidth)
-	jobLines := m.renderJobs()
+	msgLines := m.renderMessages()
 
 	maxRows := len(threadLines)
-	if len(jobLines) > maxRows {
-		maxRows = len(jobLines)
+	if len(msgLines) > maxRows {
+		maxRows = len(msgLines)
+	}
+	if maxRows == 0 {
+		maxRows = 1
 	}
 
 	for i := 0; i < maxRows; i++ {
@@ -168,14 +173,14 @@ func (m ChatModel) View() string {
 		if i < len(threadLines) {
 			left = threadLines[i]
 		}
-		if i < len(jobLines) {
-			right = jobLines[i]
+		if i < len(msgLines) {
+			right = msgLines[i]
 		}
 		sb.WriteString(fmt.Sprintf("%-*s│  %s\n", leftWidth, left, right))
 	}
 
 	if len(m.threads) == 0 {
-		sb.WriteString(StyleMuted.Render("  No threads yet") + "\n")
+		sb.WriteString(StyleMuted.Render("  No threads yet. Press r to refresh.\n"))
 	}
 
 	sb.WriteString("\n" + StyleHelp.Render("  h/l or ←/→: switch pane  ↑↓/j/k: move  r: refresh"))
@@ -185,13 +190,14 @@ func (m ChatModel) View() string {
 func (m ChatModel) renderThreads(width int) []string {
 	lines := make([]string, len(m.threads))
 	for i, t := range m.threads {
-		cursor := "  "
+		cursor := "   "
 		if i == m.threadCursor && m.focusLeft {
 			cursor = StyleWarning.Render(" ▶ ")
-		} else {
-			cursor = "   "
 		}
 		title := t.Title
+		if title == "" {
+			title = t.ID
+		}
 		if len(title) > width-6 {
 			title = title[:width-9] + "…"
 		}
@@ -204,31 +210,33 @@ func (m ChatModel) renderThreads(width int) []string {
 	return lines
 }
 
-func (m ChatModel) renderJobs() []string {
-	lines := make([]string, len(m.jobs))
-	for i, j := range m.jobs {
+func (m ChatModel) renderMessages() []string {
+	if len(m.messages) == 0 {
+		if len(m.threads) > 0 {
+			return []string{StyleMuted.Render("No messages")}
+		}
+		return nil
+	}
+	lines := make([]string, len(m.messages))
+	for i, msg := range m.messages {
 		cursor := "   "
-		if i == m.jobCursor && !m.focusLeft {
+		if i == m.msgCursor && !m.focusLeft {
 			cursor = StyleWarning.Render(" ▶ ")
 		}
-
-		var statusIcon string
-		switch j.Status {
-		case "running":
-			statusIcon = StyleWarning.Render("●")
-		case "done", "completed":
-			statusIcon = StyleOK.Render("✓")
-		case "failed":
-			statusIcon = StyleError.Render("✗")
+		var roleLabel string
+		switch msg.Role {
+		case "user":
+			roleLabel = StylePrimary().Render("you")
+		case "assistant":
+			roleLabel = StyleOK.Render("ai ")
 		default:
-			statusIcon = StyleMuted.Render("○")
+			roleLabel = StyleMuted.Render(msg.Role)
 		}
-
-		team := j.AgentTeamName
-		if len(team) > 16 {
-			team = team[:13] + "…"
+		content := msg.Content
+		if len(content) > 36 {
+			content = content[:33] + "…"
 		}
-		lines[i] = fmt.Sprintf("%s%s %-18s", cursor, statusIcon, team)
+		lines[i] = fmt.Sprintf("%s%s  %s", cursor, roleLabel, content)
 	}
 	return lines
 }
@@ -249,19 +257,45 @@ func decodeThreads(raw interface{}) []api.Thread {
 			continue
 		}
 		t := api.Thread{}
-		if v, ok := m["id"].(string); ok {
+		if v, ok := m["threadId"].(string); ok {
 			t.ID = v
 		}
 		if v, ok := m["title"].(string); ok {
 			t.Title = v
 		}
-		if v, ok := m["created_at"].(string); ok {
+		if v, ok := m["createdAt"].(string); ok {
 			t.CreatedAt = v
 		}
-		if v, ok := m["message_count"].(float64); ok {
-			t.MessageCount = int(v)
-		}
 		out = append(out, t)
+	}
+	return out
+}
+
+func decodeMessages(raw interface{}) []api.Message {
+	slice, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]api.Message, 0, len(slice))
+	for _, item := range slice {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		msg := api.Message{}
+		if v, ok := m["messageId"].(string); ok {
+			msg.ID = v
+		}
+		if v, ok := m["role"].(string); ok {
+			msg.Role = v
+		}
+		if v, ok := m["content"].(string); ok {
+			msg.Content = v
+		}
+		if v, ok := m["createdAt"].(string); ok {
+			msg.CreatedAt = v
+		}
+		out = append(out, msg)
 	}
 	return out
 }
@@ -281,14 +315,20 @@ func decodeJobs(raw interface{}) []api.Job {
 		if v, ok := m["id"].(string); ok {
 			j.ID = v
 		}
+		if v, ok := m["goal"].(string); ok {
+			j.Goal = v
+		}
 		if v, ok := m["status"].(string); ok {
 			j.Status = v
 		}
-		if v, ok := m["agent_team_name"].(string); ok {
-			j.AgentTeamName = v
-		}
-		if v, ok := m["created_at"].(string); ok {
+		if v, ok := m["createdAt"].(string); ok {
 			j.CreatedAt = v
+		}
+		if v, ok := m["completedAt"].(string); ok {
+			j.CompletedAt = v
+		}
+		if v, ok := m["threadId"].(string); ok {
+			j.ThreadID = v
 		}
 		out = append(out, j)
 	}

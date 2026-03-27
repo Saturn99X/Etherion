@@ -430,6 +430,13 @@ class SiloOAuthService:
             }
             await self._tsm.set_secret(tenant_id, "slack", "user_token_credentials", creds)
 
+        # Kick off background KB sync so vendor data is searchable immediately
+        try:
+            from src.tasks.vendor_kb_sync import vendor_kb_sync_task
+            vendor_kb_sync_task.delay(tenant_id, provider)
+        except Exception:
+            pass  # non-fatal — sync will happen on next connection
+
         return {"ok": True, "tenant_id": tenant_id, "provider": provider, "redirect_to": payload.get("redirect_to")}
 
     async def revoke(self, *, tenant_id: str, provider: str) -> Dict[str, Any]:

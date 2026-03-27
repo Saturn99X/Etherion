@@ -90,21 +90,22 @@ func httpCheck(name string, env map[string]string) healthEntry {
 	if apiHost == "" || apiHost == "0.0.0.0" || apiHost == "::" {
 		apiHost = "localhost"
 	}
+	// Strip any scheme the env might already include.
+	apiHost = stripScheme(apiHost)
 	port := env["API_PORT"]
 	if port == "" {
 		port = "8080"
 	}
-	if !strings.HasPrefix(apiHost, "http") {
-		apiHost = fmt.Sprintf("http://%s:%s", apiHost, port)
-	}
+	// Build plain host:port for TCP dial — never add port twice.
+	tcpAddr := fmt.Sprintf("%s:%s", apiHost, port)
 	t0 := time.Now()
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", stripScheme(apiHost), port), 2*time.Second)
+	conn, err := net.DialTimeout("tcp", tcpAddr, 2*time.Second)
 	ms := int(time.Since(t0).Milliseconds())
 	if err != nil {
 		return healthEntry{name: name, ok: false, detail: err.Error(), ms: ms}
 	}
 	conn.Close()
-	return healthEntry{name: name, ok: true, detail: fmt.Sprintf("HTTP 200"), ms: ms}
+	return healthEntry{name: name, ok: true, detail: fmt.Sprintf("http://%s", tcpAddr), ms: ms}
 }
 
 func extractHost(rawURL, fallback string) string {

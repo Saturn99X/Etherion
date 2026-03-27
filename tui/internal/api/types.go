@@ -41,13 +41,22 @@ type Thread struct {
 	MessageCount int    `json:"message_count"`
 }
 
-// Job represents an agent job tied to a thread.
+// Job represents an agent job from getJobHistory.
 type Job struct {
-	ID            string `json:"id"`
-	Status        string `json:"status"`
-	AgentTeamName string `json:"agent_team_name"`
-	CreatedAt     string `json:"created_at"`
-	CompletedAt   string `json:"completed_at"`
+	ID          string `json:"id"`
+	Goal        string `json:"goal"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"createdAt"`
+	CompletedAt string `json:"completedAt"`
+	ThreadID    string `json:"threadId"`
+}
+
+// Message represents a single message within a thread.
+type Message struct {
+	ID        string `json:"messageId"`
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+	CreatedAt string `json:"createdAt"`
 }
 
 // Agent represents a single agent definition.
@@ -60,10 +69,30 @@ type Agent struct {
 
 // AgentTeam represents a named team of agents.
 type AgentTeam struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Agents      []Agent `json:"agents"`
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Description          string   `json:"description"`
+	IsActive             bool     `json:"isActive"`
+	IsSystem             bool     `json:"isSystemTeam"`
+	CustomAgentIDs       []string `json:"customAgentIDs"`
+	PreApprovedToolNames []string `json:"preApprovedToolNames"`
+}
+
+// KBSource represents a knowledge base integration source.
+type KBSource struct {
+	ServiceName   string   `json:"serviceName"`
+	Status        string   `json:"status"`
+	LastConnected string   `json:"lastConnected"`
+	Capabilities  []string `json:"capabilities"`
+}
+
+// MCPTool represents an available tool that can be scoped to an agent team.
+type MCPTool struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Category    string   `json:"category"`
+	Status      string   `json:"status"`
+	Capabilities []string `json:"capabilities"`
 }
 
 // APIError wraps an HTTP error from the backend.

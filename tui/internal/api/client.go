@@ -18,12 +18,12 @@ type Client struct {
 	http    *http.Client
 }
 
-// New returns a new Client with a 15-second default timeout.
+// New returns a new Client with a 120-second default timeout (LLM operations can be slow).
 func New(baseURL, token string) *Client {
 	return &Client{
 		BaseURL: strings.TrimRight(baseURL, "/"),
 		Token:   token,
-		http:    &http.Client{Timeout: 15 * time.Second},
+		http:    &http.Client{Timeout: 120 * time.Second},
 	}
 }
 

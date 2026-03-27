@@ -574,12 +574,20 @@ func (m OAuthModel) renderRow(i int, p OAuthProvider) string {
 	return fmt.Sprintf("%s%s %s %s\n", cur, name, status, action)
 }
 
+func (m OAuthModel) resolvedHelp(raw string) string {
+	apiURL := "http://localhost:8080"
+	if m.apiClient != nil && m.apiClient.BaseURL != "" {
+		apiURL = m.apiClient.BaseURL
+	}
+	return strings.ReplaceAll(raw, "{YOUR_API_URL}", apiURL)
+}
+
 func (m OAuthModel) renderTokenForm() string {
 	p := providers[m.cursor]
 	var sb strings.Builder
 	sb.WriteString(StyleHeader.Render(fmt.Sprintf("  Connect %s", p.Name)) + "\n\n")
 	sb.WriteString("  " + StyleMuted.Render(p.Description) + "\n\n")
-	for _, line := range strings.Split(p.TokenHelp, "\n") {
+	for _, line := range strings.Split(m.resolvedHelp(p.TokenHelp), "\n") {
 		sb.WriteString("  " + StyleMuted.Render(line) + "\n")
 	}
 	sb.WriteString("\n")
@@ -614,7 +622,7 @@ func (m OAuthModel) renderSetupGuide() string {
 	if p.EnvVars != "" {
 		sb.WriteString("  " + StyleWarning.Render("Env vars needed: "+p.EnvVars) + "\n\n")
 	}
-	for _, line := range strings.Split(p.TokenHelp, "\n") {
+	for _, line := range strings.Split(m.resolvedHelp(p.TokenHelp), "\n") {
 		sb.WriteString("  " + StyleMuted.Render(line) + "\n")
 	}
 	sb.WriteString("\n")

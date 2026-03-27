@@ -17,8 +17,8 @@ type MonitorModel struct {
 	apiClient *api.Client
 }
 
-func NewMonitorModel() MonitorModel {
-	return MonitorModel{}
+func NewMonitorModel(apiClient *api.Client) MonitorModel {
+	return MonitorModel{apiClient: apiClient}
 }
 
 func (m MonitorModel) Init() tea.Cmd { return nil }
@@ -50,8 +50,11 @@ func (m MonitorModel) Update(msg tea.Msg) (MonitorModel, tea.Cmd) {
 			break
 		}
 		m.err = ""
-		if jobs, ok := msg.data["jobs"]; ok {
-			m.jobs = decodeJobs(jobs)
+		// getJobHistory returns { jobs: [...], totalCount: N, pageInfo: {...} }
+		if hist, ok := msg.data["getJobHistory"].(map[string]interface{}); ok {
+			if jobs, ok := hist["jobs"]; ok {
+				m.jobs = decodeJobs(jobs)
+			}
 		}
 	}
 
@@ -64,8 +67,7 @@ func (m *MonitorModel) loadJobs() tea.Cmd {
 	}
 	client := m.apiClient
 	return func() tea.Msg {
-		// Fetch recent jobs across all threads.
-		q := `query RecentJobs { jobs { id status agent_team_name created_at completed_at } }`
+		q := `query { getJobHistory(limit: 50) { jobs { id goal status createdAt completedAt threadId } } }`
 		resp, err := client.GraphQL(context.Background(), q, nil)
 		return graphqlResultMsg{data: resp.Data, tab: tabMonitor, err: err}
 	}
@@ -87,11 +89,10 @@ func (m MonitorModel) View() string {
 	if len(m.jobs) == 0 {
 		sb.WriteString(StyleMuted.Render("  No jobs found. Press r to refresh.\n"))
 	} else {
-		// Table header.
 		sb.WriteString(StyleMuted.Render(
-			fmt.Sprintf("  %-8s  %-20s  %-18s  %s",
-				"Status", "Team", "Started", "Completed")) + "\n")
-		sb.WriteString(StyleMuted.Render("  "+strings.Repeat("─", 70)) + "\n")
+			fmt.Sprintf("  %-10s %-32s %-18s  %s",
+				"Status", "Goal", "Started", "Completed")) + "\n")
+		sb.WriteString(StyleMuted.Render("  "+strings.Repeat("─", 74)) + "\n")
 
 		for i, j := range m.jobs {
 			cursor := "   "
@@ -102,18 +103,18 @@ func (m MonitorModel) View() string {
 			var statusIcon string
 			switch j.Status {
 			case "running":
-				statusIcon = StyleWarning.Render("● running")
+				statusIcon = StyleWarning.Render("● running ")
 			case "done", "completed":
-				statusIcon = StyleOK.Render("✓ done   ")
+				statusIcon = StyleOK.Render("✓ done    ")
 			case "failed":
-				statusIcon = StyleError.Render("✗ failed ")
+				statusIcon = StyleError.Render("✗ failed  ")
 			default:
 				statusIcon = StyleMuted.Render("○ " + j.Status)
 			}
 
-			team := j.AgentTeamName
-			if len(team) > 18 {
-				team = team[:15] + "…"
+			goal := j.Goal
+			if len(goal) > 30 {
+				goal = goal[:27] + "…"
 			}
 			started := j.CreatedAt
 			if len(started) > 16 {
@@ -126,8 +127,8 @@ func (m MonitorModel) View() string {
 				completed = completed[:16]
 			}
 
-			row := fmt.Sprintf("%s%-10s  %-20s  %-18s  %s",
-				cursor, statusIcon, team, started, completed)
+			row := fmt.Sprintf("%s%-12s %-32s %-18s  %s",
+				cursor, statusIcon, goal, started, completed)
 			if i == m.cursor {
 				sb.WriteString(StyleWarning.Render(row) + "\n")
 			} else {
@@ -136,6 +137,6 @@ func (m MonitorModel) View() string {
 		}
 	}
 
-	sb.WriteString("\n" + StyleHelp.Render("  ↑↓/j/k: move  r: refresh  Enter: view details"))
+	sb.WriteString("\n" + StyleHelp.Render("  ↑↓/j/k: move  r: refresh"))
 	return sb.String()
 }

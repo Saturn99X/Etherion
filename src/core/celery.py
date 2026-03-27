@@ -76,6 +76,7 @@ _celery_kwargs: Dict[str, Any] = {
         "src.core.tasks",
         "src.services.pricing.reconciliation",
         "src.tasks.drive_worker",
+        "src.tasks.vendor_kb_sync",
     ],
 }
 if CELERY_BACKEND_FOR_APP:
