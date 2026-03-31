@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "etherion"
-version = "0.1.4"
+version = "0.1.5"
 description = "Self-hosted AI orchestration platform — agentic runtime you own end-to-end"
 readme = "README.md"
 license = { text = "MIT" }

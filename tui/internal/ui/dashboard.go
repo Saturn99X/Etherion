@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -11,9 +12,11 @@ import (
 )
 
 type DashboardModel struct {
-	entries []healthEntry
-	env     map[string]string
-	lastRun time.Time
+	entries        []healthEntry
+	env            map[string]string
+	lastRun        time.Time
+	confirmDown    bool   // showing "are you sure?" prompt
+	shutdownStatus string // "", "stopping…", "stopped", or error
 }
 
 func NewDashboardModel() DashboardModel {
@@ -25,13 +28,69 @@ func (m DashboardModel) Init() tea.Cmd {
 	return doHealthCheck(m.env)
 }
 
+type shutdownResultMsg struct{ err error }
+
 func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if m.confirmDown {
+			switch msg.String() {
+			case "y", "Y":
+				m.confirmDown = false
+				m.shutdownStatus = "stopping…"
+				return m, doShutdown()
+			default:
+				m.confirmDown = false
+			}
+			return m, nil
+		}
+		switch msg.String() {
+		case "S":
+			m.confirmDown = true
+			return m, nil
+		}
 	case healthResultMsg:
 		m.entries = msg.results
 		m.lastRun = time.Now()
+	case shutdownResultMsg:
+		if msg.err != nil {
+			m.shutdownStatus = fmt.Sprintf("error: %v", msg.err)
+		} else {
+			m.shutdownStatus = "all services stopped"
+		}
 	}
 	return m, nil
+}
+
+func doShutdown() tea.Cmd {
+	return func() tea.Msg {
+		err := runShutdown()
+		return shutdownResultMsg{err: err}
+	}
+}
+
+func runShutdown() error {
+	// Try docker compose down first
+	composePaths := []string{"docker-compose.services.yml", "etherion/_data/infra/docker/docker-compose.services.yml"}
+	for _, p := range composePaths {
+		if _, err := os.Stat(p); err == nil {
+			cmd := exec.Command("docker", "compose", "-f", p, "down")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				// Fallback to legacy docker-compose
+				cmd2 := exec.Command("docker-compose", "-f", p, "down")
+				if out2, err2 := cmd2.CombinedOutput(); err2 != nil {
+					return fmt.Errorf("compose down: %s / %s", string(out), string(out2))
+				}
+			} else {
+				_ = out
+			}
+			break
+		}
+	}
+	// Kill API and workers
+	exec.Command("pkill", "-f", "uvicorn").Run()
+	exec.Command("pkill", "-f", "celery").Run()
+	return nil
 }
 
 func (m DashboardModel) View() string {
@@ -57,6 +116,19 @@ func (m DashboardModel) View() string {
 
 	if !m.lastRun.IsZero() {
 		sb.WriteString("\n" + StyleMuted.Render(fmt.Sprintf("  Last checked: %s", m.lastRun.Format("15:04:05"))))
+	}
+
+	sb.WriteString("\n\n")
+	if m.confirmDown {
+		sb.WriteString(StyleError.Render("  ⚠ Stop all services? (y/n)"))
+	} else if m.shutdownStatus != "" {
+		if strings.HasPrefix(m.shutdownStatus, "error") {
+			sb.WriteString(StyleError.Render("  " + m.shutdownStatus))
+		} else {
+			sb.WriteString(StyleOK.Render("  ✓ " + m.shutdownStatus))
+		}
+	} else {
+		sb.WriteString(StyleMuted.Render("  S: Shutdown all services"))
 	}
 	return sb.String()
 }

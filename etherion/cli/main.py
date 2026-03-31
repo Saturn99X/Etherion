@@ -92,6 +92,30 @@ def create_tenant(
 
 
 @app.command()
+def up(
+    host: str = typer.Option(None, "--host", help="API bind host"),
+    port: int = typer.Option(None, "--port", help="API bind port"),
+    workers: int = typer.Option(1, "--workers", "-w"),
+    no_api: bool = typer.Option(False, "--no-api", help="Skip starting the API server"),
+    no_worker: bool = typer.Option(False, "--no-worker", help="Skip starting the Celery worker"),
+):
+    """Bring up the full stack: infrastructure containers + API + worker."""
+    from .cmd_up import run
+    run(host=host, port=port, workers=workers, no_api=no_api, no_worker=no_worker)
+
+
+@app.command()
+def down(
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
+):
+    """Stop all services: API, workers, and infrastructure containers."""
+    if not force:
+        typer.confirm("Stop all Etherion services?", abort=True)
+    from .cmd_down import run
+    run(force=force)
+
+
+@app.command()
 def where():
     """Show all files, processes, containers, and connections on this machine."""
     from .cmd_where import run

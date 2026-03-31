@@ -97,14 +97,24 @@ func tickEvery(d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(t time.Time) tea.Msg { return tickMsg{t} })
 }
 
-// isEditingText returns true when the active tab owns free-text input or
-// interactive selection, meaning single-key global shortcuts must not fire.
+// isEditingText returns true when the active tab is handling keys itself,
+// meaning global shortcuts (1-9 tab switch, q quit) must not fire.
 func (m RootModel) isEditingText() bool {
 	switch m.activeTab {
-	case tabConnect, tabSetup:
+	case tabConnect:
+		// Always has focused text inputs.
 		return true
+	case tabSetup:
+		// Only block while the tenant email/password form is open.
+		// All other Setup states (idle, running wizard, OAuth step, done) should
+		// allow number-key tab switching — the wizard itself tells users to press 6.
+		return m.setup.step == sStepTenantForm && !m.setup.running
 	case tabAgents:
 		return m.agents.mode == agentModeCreate || m.agents.mode == agentModeTools
+	case tabOAuth:
+		// Block in every state except the plain list: token input, shop domain
+		// input, setup guide (q = go back, not quit), and browser-wait (esc = cancel).
+		return m.oauth.state != oauthStateList
 	}
 	return false
 }
@@ -118,6 +128,13 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+c"))):
 			return m, tea.Quit
+		// Escape always exits Connect tab back to Dashboard (escape hatch when
+		// the user lands on the form without meaning to).
+		case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
+			if m.activeTab == tabConnect && !m.connect.loading {
+				m.activeTab = tabDashboard
+				return m, nil
+			}
 		// 'q' quits only when not in a text-input tab
 		case key.Matches(msg, key.NewBinding(key.WithKeys("q"))):
 			if !m.isEditingText() {

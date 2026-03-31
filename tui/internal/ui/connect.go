@@ -271,6 +271,6 @@ func (m ConnectModel) View() string {
 		sb.WriteString("\n  " + StyleOK.Render("Currently logged in as "+m.cfg.UserEmail) + "\n")
 	}
 
-	sb.WriteString("\n" + StyleHelp.Render("  Tab/↑↓: move  Enter: next/confirm  Ctrl+R: switch mode  (press 8 for Dashboard)"))
+	sb.WriteString("\n" + StyleHelp.Render("  Tab/↑↓: move  Enter: next/confirm  Ctrl+R: switch mode  Esc: back to Dashboard"))
 	return sb.String()
 }
