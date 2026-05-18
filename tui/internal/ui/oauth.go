@@ -167,6 +167,7 @@ var providers = []OAuthProvider{
 type providerStatus struct {
 	connected bool
 	checked   bool
+	err       string
 }
 
 // ---------------------------------------------------------------------------
@@ -189,15 +190,16 @@ type OAuthModel struct {
 	state    oauthState
 	statuses map[string]providerStatus
 
-	tokenInputs  []textinput.Model
-	tokenFocused int
-	tokenErr     string
+	tokenInputs   []textinput.Model
+	tokenFocused  int
+	tokenErr      string
 
 	shopInput textinput.Model
 
-	authorizeURL string
-	spinner      spinner.Model
-	statusMsg    string
+	authorizeURL   string
+	spinner        spinner.Model
+	statusMsg      string
+	browserRetries int
 
 	apiClient *api.Client
 }
@@ -252,26 +254,47 @@ func (m OAuthModel) Update(msg tea.Msg) (OAuthModel, tea.Cmd) {
 		if msg.err == nil {
 			m.statuses[msg.provider] = providerStatus{connected: msg.connected, checked: true}
 		} else {
-			m.statuses[msg.provider] = providerStatus{connected: false, checked: true}
+			errStr := msg.err.Error()
+			status := "not connected"
+			if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "i/o timeout") {
+				status = "server unreachable"
+			}
+			m.statuses[msg.provider] = providerStatus{connected: false, checked: true, err: status}
 		}
 		if m.state == oauthStateBrowserWait && providers[m.cursor].ID == msg.provider {
 			if msg.connected {
 				m.state = oauthStateList
 				m.statusMsg = StyleOK.Render(providers[m.cursor].Name + " connected!")
+			} else if msg.err != nil {
+				m.state = oauthStateList
+				m.statusMsg = StyleError.Render("Server unreachable — check connection and try again")
 			} else {
-				cmds = append(cmds, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-					return doCheckOAuthStatus(m.apiClient, providers[m.cursor].ID)()
-				}))
+				m.browserRetries++
+				if m.browserRetries > 15 {
+					m.state = oauthStateList
+					m.statusMsg = StyleWarning.Render("Timeout waiting for authorization — press Enter to retry")
+					m.browserRetries = 0
+				} else {
+					cmds = append(cmds, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+						return doCheckOAuthStatus(m.apiClient, providers[m.cursor].ID)()
+					}))
+				}
 			}
 		}
 
 	case oauthFlowStartedMsg:
 		if msg.err != nil {
 			m.state = oauthStateList
-			m.statusMsg = StyleError.Render("Error: " + msg.err.Error())
+			errStr := msg.err.Error()
+			if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "i/o timeout") {
+				m.statusMsg = StyleError.Render("Server not reachable — start it first (tab 2)")
+			} else {
+				m.statusMsg = StyleError.Render("Error: " + errStr)
+			}
 		} else {
 			m.authorizeURL = msg.authorizeURL
 			m.state = oauthStateBrowserWait
+			m.browserRetries = 0
 			m.statusMsg = StyleMuted.Render("Browser opened. Waiting…")
 			openBrowser(msg.authorizeURL)
 			cmds = append(cmds, m.spinner.Tick)
@@ -285,7 +308,12 @@ func (m OAuthModel) Update(msg tea.Msg) (OAuthModel, tea.Cmd) {
 	case personalTokenSavedMsg:
 		m.state = oauthStateList
 		if msg.err != nil {
-			m.statusMsg = StyleError.Render("Error saving token: " + msg.err.Error())
+			errStr := msg.err.Error()
+			if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "i/o timeout") {
+				m.statusMsg = StyleError.Render("Server not reachable — start it first (tab 2)")
+			} else {
+				m.statusMsg = StyleError.Render("Error saving token: " + errStr)
+			}
 		} else {
 			m.statusMsg = StyleOK.Render(providers[m.cursor].Name + " token saved!")
 			m.statuses[providers[m.cursor].ID] = providerStatus{connected: true, checked: true}
@@ -313,7 +341,7 @@ func (m OAuthModel) Update(msg tea.Msg) (OAuthModel, tea.Cmd) {
 				if m.apiClient != nil {
 					p := providers[m.cursor]
 					m.statusMsg = StyleMuted.Render("Starting OAuth flow…")
-					m.state = oauthStateList
+					m.state = oauthStateBrowserWait
 					cmds = append(cmds, doStartOAuthFlow(m.apiClient, p.ID))
 				}
 			}
@@ -349,12 +377,18 @@ func (m *OAuthModel) handleListKey(msg tea.KeyMsg) []tea.Cmd {
 			for _, p := range providers {
 				cmds = append(cmds, doCheckOAuthStatus(m.apiClient, p.ID))
 			}
+		} else {
+			m.statusMsg = StyleError.Render("Not logged in — connect first (tab 1)")
 		}
 	}
 	return cmds
 }
 
 func (m *OAuthModel) activateProvider() []tea.Cmd {
+	if m.apiClient == nil {
+		m.statusMsg = StyleError.Render("Not logged in — connect first (tab 1)")
+		return nil
+	}
 	p := providers[m.cursor]
 	if m.statuses[p.ID].connected {
 		return m.disconnectProvider()
@@ -411,12 +445,22 @@ func (m *OAuthModel) handleTokenInputKey(msg tea.KeyMsg) []tea.Cmd {
 	switch msg.String() {
 	case "esc":
 		m.state = oauthStateList
-	case "tab", "down":
+	case "tab":
 		m.tokenInputs[m.tokenFocused].Blur()
 		m.tokenFocused = (m.tokenFocused + 1) % len(m.tokenInputs)
 		m.tokenInputs[m.tokenFocused].Focus()
 		cmds = append(cmds, textinput.Blink)
-	case "shift+tab", "up":
+	case "shift+tab":
+		m.tokenInputs[m.tokenFocused].Blur()
+		m.tokenFocused = (m.tokenFocused - 1 + len(m.tokenInputs)) % len(m.tokenInputs)
+		m.tokenInputs[m.tokenFocused].Focus()
+		cmds = append(cmds, textinput.Blink)
+	case "down":
+		m.tokenInputs[m.tokenFocused].Blur()
+		m.tokenFocused = (m.tokenFocused + 1) % len(m.tokenInputs)
+		m.tokenInputs[m.tokenFocused].Focus()
+		cmds = append(cmds, textinput.Blink)
+	case "up":
 		m.tokenInputs[m.tokenFocused].Blur()
 		m.tokenFocused = (m.tokenFocused - 1 + len(m.tokenInputs)) % len(m.tokenInputs)
 		m.tokenInputs[m.tokenFocused].Focus()
@@ -548,6 +592,8 @@ func (m OAuthModel) renderRow(i int, p OAuthProvider) string {
 		status = StyleMuted.Render("○ checking      ")
 	} else if st.connected {
 		status = StyleOK.Render("● connected     ")
+	} else if st.err != "" {
+		status = StyleWarning.Render("○ " + fmt.Sprintf("%-14s", st.err))
 	} else {
 		status = StyleMuted.Render("○ not connected ")
 	}

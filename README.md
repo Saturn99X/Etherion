@@ -208,7 +208,7 @@ Every query forces a live web search alongside retrieval. The platform never ans
 | **OAuth integrations** | GitHub, Google, Slack, Microsoft 365, Notion, Jira, HubSpot, Linear, Shopify |
 | **Object storage** | MinIO — per-tenant buckets, presigned URLs, artifact management |
 | **Secrets** | HashiCorp Vault — secrets injected at runtime, never persisted in env |
-| **TUI** | Bubble Tea — onboarding wizard, OAuth manager, live job monitor, tenant switcher |
+| **TUI** | Bubble Tea — onboarding wizard, OAuth manager, live job monitor, tenant switcher, .env editor (tab 0)
 | **CLI** | `etherion init / bootstrap / migrate / serve / tenant / status` |
 | **API** | FastAPI + GraphQL subscriptions, REST, WebSocket, multipart upload |
 | **Auth** | JWT, multi-provider OAuth login, invite-only onboarding, per-tenant RLS |
