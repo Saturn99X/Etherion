@@ -124,12 +124,6 @@ class MCPToolManager:
                     "required_credentials": ["api_key"],
                     "capabilities": ["create_contact", "update_contact", "get_contact", "create_deal"]
                 },
-                "mcp_linkedin": {
-                    "description": "Access LinkedIn profiles, connections, and company data",
-                    "category": "communication",
-                    "required_credentials": ["access_token"],
-                    "capabilities": ["get_profile", "get_connections", "search_companies"]
-                },
                 "mcp_notion": {
                     "description": "Create, read, and update Notion pages and databases",
                     "category": "communication",
@@ -143,113 +137,6 @@ class MCPToolManager:
                     "required_credentials": ["access_token", "shop_domain"],
                     "capabilities": ["get_orders", "get_products", "update_order", "create_product"]
                 },
-                # Additional tools present in src/tools/mcp but previously not surfaced
-                "mcp_gmail": {
-                    "description": "Gmail: read, search, send emails (OAuth2 with refresh)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["list_messages", "get_message", "send_message", "search_messages", "get_labels"]
-                },
-                "mcp_google_drive": {
-                    "description": "Google Drive: files, folders, permissions (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["list_files", "get_file", "upload_file", "search_files"]
-                },
-                "mcp_google_calendar": {
-                    "description": "Google Calendar: calendars and events (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["list_calendars", "get_events", "create_event", "update_event", "delete_event"]
-                },
-                "mcp_google_docs": {
-                    "description": "Google Docs: documents (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["get_doc_content", "create_doc", "modify_doc_text"]
-                },
-                "mcp_google_sheets": {
-                    "description": "Google Sheets: spreadsheets (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": [
-                        "list_spreadsheets",
-                        "get_spreadsheet_info",
-                        "read_sheet_values",
-                        "modify_sheet_values",
-                        "create_sheet",
-                        "create_spreadsheet"
-                    ]
-                },
-                "mcp_google_slides": {
-                    "description": "Google Slides: presentations (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["create_presentation", "get_presentation"]
-                },
-                "mcp_google_forms": {
-                    "description": "Google Forms: forms and responses (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": [
-                        "create_form",
-                        "get_form",
-                        "list_form_responses",
-                        "set_publish_settings",
-                        "get_form_response"
-                    ]
-                },
-                "mcp_google_tasks": {
-                    "description": "Google Tasks: personal tasks (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": [
-                        "list_task_lists", "get_task_list", "create_task_list", "update_task_list", "delete_task_list",
-                        "list_tasks", "get_task", "create_task", "update_task", "delete_task", "move_task"
-                    ]
-                },
-                "mcp_google_chat": {
-                    "description": "Google Chat: spaces and messages (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["list_spaces", "get_messages", "send_message"]
-                },
-                "mcp_google_search": {
-                    "description": "Google Programmable Search Engine (API key)",
-                    "category": "communication",
-                    "required_credentials": ["credentials"],
-                    "capabilities": ["search_custom"]
-                },
-                "mcp_ms365": {
-                    "description": "Microsoft 365: mail, calendar, files (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["list_messages", "send_message", "list_events", "list_files"]
-                },
-                "mcp_salesforce": {
-                    "description": "Salesforce: leads, accounts, opportunities (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["create_lead", "update_lead", "query_soql"]
-                },
-                "mcp_instagram": {
-                    "description": "Instagram: basic content operations (token)",
-                    "category": "communication",
-                    "required_credentials": ["access_token"],
-                    "capabilities": ["get_profile", "list_media", "post_media"]
-                },
-                "mcp_reddit": {
-                    "description": "Reddit: posts, comments, search (OAuth2)",
-                    "category": "communication",
-                    "required_credentials": ["oauth_credentials"],
-                    "capabilities": ["get_subreddit", "submit_post", "comment", "search"]
-                },
-                "mcp_twitter": {
-                    "description": "Access Twitter/X data and post updates",
-                    "category": "communication",
-                    "required_credentials": ["api_key", "api_secret", "access_token", "access_token_secret"],
-                    "capabilities": ["post_tweet", "get_tweets", "search_tweets", "get_user"]
-                }
             }
 
             # Get tool status from database
@@ -313,7 +200,6 @@ class MCPToolManager:
                 "mcp_slack": ("src.tools.mcp.mcp_slack", "MCPSlackTool"),
                 "mcp_jira": ("src.tools.mcp.mcp_jira", "MCPJiraTool"),
                 "mcp_hubspot": ("src.tools.mcp.mcp_hubspot", "MCPHubSpotTool"),
-                "mcp_linkedin": ("src.tools.mcp.mcp_linkedin", "MCPLinkedInTool"),
                 "mcp_notion": ("src.tools.mcp.mcp_notion", "MCPNotionTool"),
                 "mcp_shopify": ("src.tools.mcp.mcp_shopify", "MCPShopifyTool"),
                 "mcp_gmail": ("src.tools.mcp.mcp_gmail", "MCPGmailTool"),
@@ -326,11 +212,7 @@ class MCPToolManager:
                 "mcp_google_tasks": ("src.tools.mcp.mcp_google_tasks", "MCPGoogleTasksTool"),
                 "mcp_google_chat": ("src.tools.mcp.mcp_google_chat", "MCPGoogleChatTool"),
                 "mcp_google_search": ("src.tools.mcp.mcp_google_search", "MCPGoogleSearchTool"),
-                "mcp_ms365": ("src.tools.mcp.mcp_ms365", "MCPMS365Tool"),
                 "mcp_salesforce": ("src.tools.mcp.mcp_salesforce", "MCPSalesforceTool"),
-                "mcp_instagram": ("src.tools.mcp.mcp_instagram", "MCPInstagramTool"),
-                "mcp_reddit": ("src.tools.mcp.mcp_reddit", "MCPRedditTool"),
-                "mcp_twitter": ("src.tools.mcp.mcp_twitter", "MCPTwitterTool"),
             }
 
             if tool_name not in registry:
@@ -451,7 +333,6 @@ class MCPToolManager:
                 "mcp_slack": ("src.tools.mcp.mcp_slack", "MCPSlackTool"),
                 "mcp_jira": ("src.tools.mcp.mcp_jira", "MCPJiraTool"),
                 "mcp_hubspot": ("src.tools.mcp.mcp_hubspot", "MCPHubSpotTool"),
-                "mcp_linkedin": ("src.tools.mcp.mcp_linkedin", "MCPLinkedInTool"),
                 "mcp_notion": ("src.tools.mcp.mcp_notion", "MCPNotionTool"),
                 "mcp_shopify": ("src.tools.mcp.mcp_shopify", "MCPShopifyTool"),
                 "mcp_gmail": ("src.tools.mcp.mcp_gmail", "MCPGmailTool"),
@@ -464,11 +345,7 @@ class MCPToolManager:
                 "mcp_google_tasks": ("src.tools.mcp.mcp_google_tasks", "MCPGoogleTasksTool"),
                 "mcp_google_chat": ("src.tools.mcp.mcp_google_chat", "MCPGoogleChatTool"),
                 "mcp_google_search": ("src.tools.mcp.mcp_google_search", "MCPGoogleSearchTool"),
-                "mcp_ms365": ("src.tools.mcp.mcp_ms365", "MCPMS365Tool"),
                 "mcp_salesforce": ("src.tools.mcp.mcp_salesforce", "MCPSalesforceTool"),
-                "mcp_instagram": ("src.tools.mcp.mcp_instagram", "MCPInstagramTool"),
-                "mcp_reddit": ("src.tools.mcp.mcp_reddit", "MCPRedditTool"),
-                "mcp_twitter": ("src.tools.mcp.mcp_twitter", "MCPTwitterTool"),
             }
 
             if tool_name in registry:

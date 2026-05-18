@@ -1266,7 +1266,7 @@ async def oauth_callback(provider: str, request: Request):
         if not db_session:
             raise HTTPException(status_code=500, detail="DB session unavailable")
 
-        if provider not in ("google", "github", "microsoft", "slack"):
+        if provider not in ("google", "github", "slack"):
             raise HTTPException(status_code=400, detail="Unsupported provider")
 
         # Decode and validate state
@@ -1278,7 +1278,6 @@ async def oauth_callback(provider: str, request: Request):
         vendor_in_state = state_obj.get("vendor")
         allowed = {
             "google": {"gmail", "google_drive", "google"},
-            "microsoft": {"ms365", "microsoft"},
             "github": {"github"},
             "slack": {"slack"},
         }
@@ -1367,7 +1366,7 @@ async def oauth_start(
     shop_url: Optional[str] = None,
     invite_token: Optional[str] = None,
 ):
-    if vendor not in ("gmail", "slack", "ms365", "google_drive", "shopify", "jira", "notion", "salesforce"):
+    if vendor not in ("gmail", "slack", "google_drive", "shopify", "jira", "notion", "salesforce"):
         raise HTTPException(status_code=400, detail="Unsupported vendor")
 
     secret = os.environ.get("OAUTH_STATE_SECRET")
@@ -1417,7 +1416,7 @@ async def oauth_start(
         if isinstance(oc, dict):
             client_id_override = oc.get("client_id") or oc.get("id") or None
         else:
-            alt = "google" if vendor in ("gmail", "google_drive") else ("microsoft" if vendor == "ms365" else vendor)
+            alt = "google" if vendor in ("gmail", "google_drive") else vendor
             oc2 = await sm.get_secret(str(tenant_id), alt, "oauth_client")
             if isinstance(oc2, dict):
                 client_id_override = oc2.get("client_id") or oc2.get("id") or None
@@ -1438,10 +1437,6 @@ async def oauth_start(
         "google_drive": {
             "minimal": ["https://www.googleapis.com/auth/drive.readonly"],
             "full": ["https://www.googleapis.com/auth/drive"],
-        },
-        "ms365": {
-            "minimal": ["offline_access", "openid", "profile", "User.Read", "Mail.Send"],
-            "full": ["offline_access", "openid", "profile", "User.Read", "Mail.Send", "Mail.Read"],
         },
         "slack": {
             "minimal": ["chat:write", "channels:read", "channels:history", "files:write", "users:read"],
@@ -1472,20 +1467,6 @@ async def oauth_start(
             "prompt": "consent",
         }
         url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
-        return JSONResponse({"authorize_url": url, "state": state})
-
-    if vendor == "ms365":
-        tenant = os.environ.get("MICROSOFT_TENANT_ID", "common")
-        client_id = client_id_override or os.environ.get("MICROSOFT_CLIENT_ID", "")
-        params = {
-            "response_type": "code",
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": " ".join(scopes),
-            "state": state,
-            "prompt": "consent",
-        }
-        url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?{urlencode(params)}"
         return JSONResponse({"authorize_url": url, "state": state})
 
     if vendor == "slack":
@@ -1606,7 +1587,7 @@ async def oauth_callback_vendor(
         sm = TenantSecretsManager()
         oc = await sm.get_secret(str(tenant_id), vendor, "oauth_client")
         if not isinstance(oc, dict):
-            alt = "google" if vendor in ("gmail", "google_drive") else ("microsoft" if vendor == "ms365" else vendor)
+            alt = "google" if vendor in ("gmail", "google_drive") else vendor
             oc = await sm.get_secret(str(tenant_id), alt, "oauth_client")
         if isinstance(oc, dict):
             client_id_override = oc.get("client_id") or oc.get("id") or None
@@ -1642,38 +1623,6 @@ async def oauth_callback_vendor(
                     creds = {**base_creds, "expires_at": expires_at, "expires_in": expires_in}
                 sm = TenantSecretsManager()
                 await sm.set_secret(str(tenant_id), vendor, "oauth_credentials", secret_value=creds)
-            except Exception:
-                pass
-
-    elif vendor == "ms365":
-        tenant = os.environ.get("MICROSOFT_TENANT_ID", "common")
-        async with AsyncOAuth2Client(
-            client_id=client_id_override or os.environ.get("MICROSOFT_CLIENT_ID", ""),
-            client_secret=client_secret_override or os.environ.get("MICROSOFT_CLIENT_SECRET", ""),
-            redirect_uri=redirect_uri,
-        ) as client:
-            token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
-            token_data = await client.fetch_token(token_url, code=code, redirect_uri=redirect_uri)
-            try:
-                access_token = token_data.get("access_token")
-                refresh_token = token_data.get("refresh_token")
-                token_type = token_data.get("token_type", "Bearer")
-                scope = token_data.get("scope", "")
-                expires_in = int(token_data.get("expires_in", 3600))
-                expires_at = (datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_in)).isoformat()
-                creds = {
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    "token_type": token_type,
-                    "expires_in": expires_in,
-                    "expires_at": expires_at,
-                    "scope": scope,
-                    "client_id": client_id_override or os.environ.get("MICROSOFT_CLIENT_ID", ""),
-                    "client_secret": client_secret_override or os.environ.get("MICROSOFT_CLIENT_SECRET", ""),
-                    "tenant_id": os.environ.get("MICROSOFT_TENANT_ID", ""),
-                }
-                sm = TenantSecretsManager()
-                await sm.set_secret(str(tenant_id), "ms365", "oauth_credentials", secret_value=creds)
             except Exception:
                 pass
 
@@ -2109,7 +2058,6 @@ async def get_asset_download(asset_id: str, request: Request):
 QUOTA_DEFAULTS: Dict[str, int] = {
     "gmail": 2000,
     "google_drive": 2000,
-    "ms365": 2000,
     "slack": 5000,
     "shopify": 3000,
     "jira": 3000,
@@ -2208,9 +2156,6 @@ async def rotate_secret(tool: str, key: str, request: Request):
                             data={"token": old_value},
                             headers={"Content-Type": "application/x-www-form-urlencoded"},
                         )
-                elif tool in ("ms365", "microsoft") and key == "refresh_token":
-                    # Microsoft revocation varies; best-effort: no universal endpoint for all apps
-                    pass
             except Exception:
                 # Non-fatal; rotation succeeded
                 pass

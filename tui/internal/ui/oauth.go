@@ -127,24 +127,6 @@ var providers = []OAuthProvider{
 			"5. Restart server, then press Enter here",
 	},
 	{
-		ID:          "microsoft",
-		Name:        "Microsoft 365",
-		AuthMethod:  "browser",
-		Description: "Outlook mail, OneDrive files",
-		EnvVars:     "MICROSOFT_OAUTH_CLIENT_ID + MICROSOFT_OAUTH_CLIENT_SECRET",
-		TokenHelp: "Register an Azure AD App:\n" +
-			"1. entra.microsoft.com → App registrations → New registration\n" +
-			"2. Redirect URI (Web):\n" +
-			"   {YOUR_API_URL}/oauth/silo/microsoft/callback\n" +
-			"3. API permissions → Add:\n" +
-			"   Mail.Read, Files.Read, User.Read, offline_access\n" +
-			"4. Certificates & secrets → New client secret → copy value\n" +
-			"5. Overview page → copy Application (client) ID → .env:\n" +
-			"   MICROSOFT_OAUTH_CLIENT_ID=...\n" +
-			"   MICROSOFT_OAUTH_CLIENT_SECRET=...\n" +
-			"6. Restart server, then press Enter here",
-	},
-	{
 		ID:          "shopify",
 		Name:        "Shopify",
 		AuthMethod:  "browser+shop",

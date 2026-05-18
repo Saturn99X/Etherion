@@ -141,12 +141,6 @@ class ToolManager:
                     "type": "class",
                     "category": "communication"
                 },
-                "MCPTwitterTool": {
-                    "module": "src.tools.mcp.mcp_twitter",
-                    "class": "MCPTwitterTool",
-                    "type": "class",
-                    "category": "communication"
-                },
                 # Knowledge Base Tools
                 "search_user_feedback_history": {
                     "module": "src.tools.knowledge_base_tools",

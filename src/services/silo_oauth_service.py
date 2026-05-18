@@ -105,19 +105,6 @@ class SiloOAuthService:
                 client_secret_envs=["NOTION_OAUTH_CLIENT_SECRET"],
             ),
             # Microsoft 365 (Graph API — Mail, Files, Calendar)
-            "microsoft": ProviderConfig(
-                name="microsoft",
-                auth_url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-                token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
-                scopes=[
-                    "https://graph.microsoft.com/Mail.Read",
-                    "https://graph.microsoft.com/Files.Read",
-                    "https://graph.microsoft.com/User.Read",
-                    "offline_access",
-                ],
-                client_id_envs=["MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_CLIENT_ID"],
-                client_secret_envs=["MICROSOFT_OAUTH_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET"],
-            ),
             # Shopify (shop-specific host required)
             "shopify": ProviderConfig(
                 name="shopify",
@@ -382,28 +369,6 @@ class SiloOAuthService:
                     "refresh_token": data.get("refresh_token"),
                     "expires_in": data.get("expires_in"),
                     "id_token": data.get("id_token"),
-                    "token_type": data.get("token_type"),
-                    "created_at": int(time.time()),
-                }
-        elif provider == "microsoft":
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(
-                    p.token_url,
-                    data={
-                        "grant_type": "authorization_code",
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "code": code,
-                        "redirect_uri": redirect_uri,
-                    },
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                token_resp = {
-                    "access_token": data.get("access_token"),
-                    "refresh_token": data.get("refresh_token"),
-                    "expires_in": data.get("expires_in"),
                     "token_type": data.get("token_type"),
                     "created_at": int(time.time()),
                 }
