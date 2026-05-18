@@ -61,6 +61,99 @@ That's it. Visit `http://localhost:8080/graphql` for the API playground.
 
 ---
 
+## Environment Configuration
+
+The TUI includes an interactive `.env` editor (tab 0) with all variables pre-listed with comments. Alternatively, configure `.env` manually:
+
+### Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `postgresql+psycopg2://etherion:etherion@localhost:5432/etherion` | Sync DB connection string |
+| `ASYNC_DATABASE_URL` | `postgresql+asyncpg://etherion:etherion@localhost:5432/etherion` | Async DB connection string |
+
+### Redis
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
+| `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Celery task queue broker |
+
+### Object Storage
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STORAGE_BACKEND` | `pg` | `pg` (PostgreSQL bytea), `minio`, `local`, or `gcs` |
+| `STORAGE_LOCAL_ROOT` | `/tmp/etherion-storage` | Path when backend is `local` |
+
+### API
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_HOST` | `0.0.0.0` | Bind address |
+| `API_PORT` | `8080` | Bind port |
+| `CORS_ORIGINS` | `http://localhost:3000` | CORS allowed origins |
+
+### Authentication
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET_KEY` | *(required)* | Secret for signing JWTs. Use a strong random string. |
+| `JWT_ALGORITHM` | `HS256` | Signing algorithm |
+| `JWT_EXPIRATION_HOURS` | `168` | Token expiry (default 7 days) |
+
+### LLM Providers — Model Selection
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ORCHESTRATOR_PROVIDER` | `bedrock` | Provider for the Platform Orchestrator: `bedrock`, `openai`, `gemini`, `openrouter`, `anthropic`, `vertex` |
+| `ORCHESTRATOR_MODEL` | `fast` | Model tier: `fast`, `default`, `smart`, or a specific model name |
+| `SPECIALIST_PROVIDER` | `bedrock` | Provider for specialist agents |
+| `SPECIALIST_MODEL` | `fast` | Model tier for specialists |
+| `EMBEDDING_PROVIDER` | `gemini` | Provider for embeddings |
+| `EMBEDDING_MODEL` | `text-embedding-004` | Model for vector embeddings (1,536 dims) |
+
+### LLM API Keys (at least one required)
+
+| Variable | Description | How to get it |
+|----------|-------------|---------------|
+| `AWS_ACCESS_KEY_ID` | AWS IAM access key for Bedrock | [AWS IAM Console](https://console.aws.amazon.com/iam) → Users → Security credentials → Create access key |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key for Bedrock | Same as above |
+| `AWS_REGION` | AWS region | Default: `us-west-2` |
+| `GEMINI_API_KEY` | Google Gemini API key | [Google AI Studio](https://aistudio.google.com/apikey) → Create API key |
+| `OPENROUTER_API_KEY` | OpenRouter unified API key | [OpenRouter](https://openrouter.ai/keys) → Create key |
+| `OPENAI_API_KEY` | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) → Create secret key |
+| `ANTHROPIC_API_KEY` | Anthropic direct API key | [Anthropic Console](https://console.anthropic.com/) → API Keys |
+| `EXA_API_KEY` | Exa web search API key | [Exa Dashboard](https://dashboard.exa.ai/) → API Keys |
+
+### Knowledge Base
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KB_VECTOR_BACKEND` | `pgvector` | Vector storage backend |
+| `KB_EMBEDDING_DIM` | `1536` | Embedding vector dimension |
+| `SKIP_EMBEDDING` | `true` | Skip embedding generation during ingest |
+
+### Secrets
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRETS_BACKEND` | `local` | `local` (env-based), or `vault` (HashiCorp Vault) |
+
+### Misc
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DISABLE_GCP_LOGGING` | `1` | Disable Google Cloud Logging (1 = yes) |
+| `LOG_LEVEL` | `INFO` | Logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `ENABLE_EXECUTION_TRACE` | `true` | Record full execution traces per job |
+
+### TUI Env Editor
+
+Press `0` in the TUI to open the interactive `.env` editor with all 39 variables pre-listed with comments. Navigate rows with `↑↓`, press `Enter` to edit any value.
+
+---
+
 ## Architecture
 
 ```

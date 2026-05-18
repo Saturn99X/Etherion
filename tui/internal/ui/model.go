@@ -22,11 +22,12 @@ const (
 	tabLogs             // 6 - Scrollable logs
 	tabDashboard        // 7 - Health dashboard
 	tabKB               // 8 - Knowledge base sources
-	tabCount            // 9
+	tabEnv              // 9 - Environment (.env) editor
+	tabCount            // 10
 )
 
 var tabNames = [tabCount]string{
-	"Connect", "Setup", "Chat", "Agents", "Monitor", "OAuth", "Logs", "Dashboard", "KB",
+	"Connect", "Setup", "Chat", "Agents", "Monitor", "OAuth", "Logs", "Dashboard", "KB", "Env",
 }
 
 // RootModel is the top-level Bubble Tea model.
@@ -47,6 +48,7 @@ type RootModel struct {
 	logs      LogsModel
 	dashboard DashboardModel
 	kb        KBModel
+	env       EnvModel
 }
 
 // NewRootModel builds the initial model, loading config and deciding which tab to show first.
@@ -65,13 +67,14 @@ func NewRootModel(cfg *config.Config) RootModel {
 		api:       apiClient,
 		connect:   NewConnectModel(cfg),
 		setup:     NewSetupModel(cfg),
-		chat:      NewChatModel(apiClient),
+		chat:      NewChatModel(apiClient, cfg.UserID),
 		agents:    NewAgentsModel(apiClient),
 		monitor:   NewMonitorModel(apiClient),
 		oauth:     NewOAuthModel(apiClient),
 		logs:      NewLogsModel(),
 		dashboard: NewDashboardModel(),
 		kb:        NewKBModel(apiClient),
+		env:       NewEnvModel(cfg),
 	}
 	return m
 }
@@ -88,6 +91,7 @@ func (m RootModel) Init() tea.Cmd {
 			m.agents.loadTeams(),
 			m.monitor.loadJobs(),
 			m.kb.loadSources(),
+			m.oauth.Init(),
 		)
 	}
 	return tea.Batch(cmds...)
@@ -102,19 +106,20 @@ func tickEvery(d time.Duration) tea.Cmd {
 func (m RootModel) isEditingText() bool {
 	switch m.activeTab {
 	case tabConnect:
-		// Always has focused text inputs.
 		return true
 	case tabSetup:
-		// Only block while the tenant email/password form is open.
-		// All other Setup states (idle, running wizard, OAuth step, done) should
-		// allow number-key tab switching — the wizard itself tells users to press 6.
 		return m.setup.step == sStepTenantForm && !m.setup.running
 	case tabAgents:
 		return m.agents.mode == agentModeCreate || m.agents.mode == agentModeTools
 	case tabOAuth:
-		// Block in every state except the plain list: token input, shop domain
-		// input, setup guide (q = go back, not quit), and browser-wait (esc = cancel).
-		return m.oauth.state != oauthStateList
+		switch m.oauth.state {
+		case oauthStateTokenInput, oauthStateShopInput:
+			return true
+		case oauthStateSetupGuide, oauthStateBrowserWait:
+			return false
+		}
+	case tabChat:
+		return m.chat.mode == chatModeCompose || m.chat.mode == chatModeNewThread
 	}
 	return false
 }
@@ -135,59 +140,51 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activeTab = tabDashboard
 				return m, nil
 			}
-		// 'q' quits only when not in a text-input tab
+		// 'q' quits only when not in a text-input tab and not in a sub-state that uses q
 		case key.Matches(msg, key.NewBinding(key.WithKeys("q"))):
+			if m.activeTab == tabOAuth && m.oauth.state == oauthStateSetupGuide {
+				break
+			}
+			if m.activeTab == tabDashboard && m.dashboard.confirmDown {
+				m.dashboard.confirmDown = false
+				return m, nil
+			}
 			if !m.isEditingText() {
 				return m, tea.Quit
 			}
 		case key.Matches(msg, key.NewBinding(key.WithKeys("1"))):
-			if !m.isEditingText() {
-				m.activeTab = tabConnect
-				return m, nil
-			}
+			m.activeTab = tabConnect
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("2"))):
-			if !m.isEditingText() {
-				m.activeTab = tabSetup
-				return m, nil
-			}
+			m.activeTab = tabSetup
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("3"))):
-			if !m.isEditingText() {
-				m.activeTab = tabChat
-				return m, nil
-			}
+			m.activeTab = tabChat
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("4"))):
-			if !m.isEditingText() {
-				m.activeTab = tabAgents
-				return m, nil
-			}
+			m.activeTab = tabAgents
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("5"))):
-			if !m.isEditingText() {
-				m.activeTab = tabMonitor
-				return m, nil
-			}
+			m.activeTab = tabMonitor
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("6"))):
-			if !m.isEditingText() {
-				m.activeTab = tabOAuth
-				return m, nil
-			}
+			m.activeTab = tabOAuth
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("7"))):
-			if !m.isEditingText() {
-				m.activeTab = tabLogs
-				return m, nil
-			}
+			m.activeTab = tabLogs
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("8"))):
-			if !m.isEditingText() {
-				m.activeTab = tabDashboard
-				return m, nil
-			}
+			m.activeTab = tabDashboard
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("9"))):
-			if !m.isEditingText() {
-				m.activeTab = tabKB
-				return m, nil
-			}
+			m.activeTab = tabKB
+			return m, nil
+		case key.Matches(msg, key.NewBinding(key.WithKeys("0"))):
+			m.activeTab = tabEnv
+			return m, nil
 		case key.Matches(msg, key.NewBinding(key.WithKeys("tab"))):
 			if m.isEditingText() {
-				break // let the active tab handle tab for field navigation
+				break
 			}
 			m.activeTab = (m.activeTab + 1) % tabCount
 			return m, nil
@@ -239,6 +236,11 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, c)
 		return m, tea.Batch(cmds...)
 
+	// switchTabMsg — used by Setup to auto-switch after server starts.
+	case switchTabMsg:
+		m.activeTab = msg.tab
+		return m, nil
+
 	// ---- health check -------------------------------------------------------
 	case healthResultMsg:
 		var c tea.Cmd
@@ -262,11 +264,12 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cfg.AccessToken = msg.token
 			m.cfg.UserEmail = msg.email
 			m.cfg.UserName = msg.name
+			m.cfg.UserID = msg.userID
 			_ = m.cfg.Save()
 			m.api = api.New(m.cfg.APIURL, msg.token)
 			// Wire apiClient into all data-fetching tabs.
 			m.oauth = NewOAuthModel(m.api)
-			m.chat = NewChatModel(m.api)
+			m.chat = NewChatModel(m.api, m.cfg.UserID)
 			m.agents = NewAgentsModel(m.api)
 			m.monitor = NewMonitorModel(m.api)
 			m.kb = NewKBModel(m.api)
@@ -275,6 +278,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.agents.loadTeams())
 			cmds = append(cmds, m.monitor.loadJobs())
 			cmds = append(cmds, m.kb.loadSources())
+			cmds = append(cmds, m.oauth.Init())
 			m.activeTab = tabDashboard
 			cmds = append(cmds, doHealthCheck(m.dashboard.env))
 		}
@@ -398,10 +402,12 @@ func (m RootModel) renderActiveTab() string {
 		return m.dashboard.View()
 	case tabKB:
 		return m.kb.View()
+	case tabEnv:
+		return m.env.View()
 	}
 	return ""
 }
 
 func (m RootModel) renderHelp() string {
-	return StyleHelp.Render("1-9: switch tabs  tab/shift+tab: cycle  ctrl+c: quit")
+	return StyleHelp.Render("0-9: switch tabs  tab/shift+tab: cycle  ctrl+c: quit")
 }
