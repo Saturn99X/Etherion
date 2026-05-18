@@ -76,6 +76,7 @@ frontend/lobechat-app/CLAUDE.md
 # =============================================================================
 # Go / TUI
 # =============================================================================
+bin/
 tui/bin/
 
 # =============================================================================
@@ -89,9 +90,12 @@ secrets/
 *.secret
 secrets.txt
 *-key.json
+*.key
 *-credentials.json
+*credentials.json
 service-account-*.json
 gcp-*.json
+*application_default_credentials.json
 tf-deployer-key.json
 ci-deployer-key.json
 .secrets.local.json
@@ -234,7 +238,7 @@ tmodf.txt
 sanitization_output.txt
 migration_logs.txt
 mcp-manifest.json
-alembic.ini
+
 ingest_payload.json
 build_*.json
 x.pdf
