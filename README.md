@@ -10,7 +10,7 @@
   <a href="https://pypi.org/project/etherion-tui/"><img src="https://img.shields.io/pypi/v/etherion-tui?color=blue&label=etherion-tui" alt="PyPI etherion-tui"/></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue"/>
   <img src="https://img.shields.io/badge/license-MIT-green"/>
-  <img src="https://img.shields.io/badge/release-v0.1.0--alpha-orange"/>
+  <img src="https://img.shields.io/badge/release-v0.2.0--alpha-orange"/>
 </p>
 
 ---
@@ -110,7 +110,7 @@ Every query forces a live web search alongside retrieval. The platform never ans
 
 | Area | Details |
 |------|---------|
-| **Orchestration** | Checklist-based 2N+1 loop, parallel specialist dispatch, full audit trail |
+| **Orchestration** | Checklist-based specialist orchestration with parallel dispatch, full audit trail |
 | **Knowledge base** | pgvector semantic search, per-tenant RLS, multimodal (PDF, images, text) |
 | **OAuth integrations** | GitHub, Google, Slack, Microsoft 365, Notion, Jira, HubSpot, Linear, Shopify |
 | **Object storage** | MinIO — per-tenant buckets, presigned URLs, artifact management |
@@ -153,9 +153,7 @@ For production, the Nix mode provisions the full stack declaratively:
 ## Documentation
 
 - [`SETUP.md`](SETUP.md) — Local and production setup guide
-- [`Z/agents.md`](Z/agents.md) — Agent-first contribution workflow (read before contributing)
-- [`Z/tech.md`](Z/tech.md) — Complete technical architecture
-- [`Docs/etherion_docs/`](Docs/etherion_docs/guide.md) — Full platform documentation (12 sections)
+- [`Docs/etherion_docs/`](Docs/etherion_docs/guide.md) — Full platform documentation (11 sections)
 
 ---
 

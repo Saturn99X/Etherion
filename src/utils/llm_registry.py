@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from .llm_providers.base import ProviderSpec
+from .llm_providers.anthropic import AnthropicProvider
+from .llm_providers.openrouter import OpenRouterProvider
 
 
 # Provider specifications (models map tiers/aliases to concrete names)
@@ -41,6 +43,26 @@ OPENAI_SPEC = ProviderSpec(
     },
 )
 
+GEMINI_SPEC = ProviderSpec(
+    name="gemini",
+    display_name="Google Gemini",
+    required_env=(),
+    optional_env=("GEMINI_API_KEY", "GOOGLE_CLOUD_PROJECT"),
+    models={
+        "default": "gemini-2.5-flash",
+        "fast": "gemini-2.5-flash",
+        "smart": "gemini-2.5-pro",
+        "flash": "gemini-2.5-flash",
+        "pro": "gemini-2.5-pro",
+        "gemini-2.5-flash": "gemini-2.5-flash",
+        "gemini-2.5-pro": "gemini-2.5-pro",
+        "gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
+        "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview": "gemini-3-flash-preview",
+        "gemini-3-pro-preview": "gemini-3-pro-preview",
+    },
+)
+
 
 @dataclass
 class RegisteredProvider:
@@ -48,6 +70,31 @@ class RegisteredProvider:
     module_path: str  # python module path to provider loader
     class_name: str   # provider class name in module
 
+
+BEDROCK_SPEC = ProviderSpec(
+    name="bedrock",
+    display_name="Amazon Bedrock",
+    required_env=("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"),
+    optional_env=("AWS_REGION", "AWS_SESSION_TOKEN"),
+    models={
+        "fast": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "default": "global.anthropic.claude-sonnet-4-6",
+        "smart": "global.anthropic.claude-sonnet-4-6",
+        "sonnet": "global.anthropic.claude-sonnet-4-6",
+        "haiku": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "opus": "anthropic.claude-opus-4-6",
+        "nova-pro": "amazon.nova-pro-v1:0",
+        "nova-lite": "amazon.nova-lite-v1:0",
+        "nova-micro": "amazon.nova-micro-v1:0",
+        "llama-3-3-70b": "meta.llama3-3-70b-instruct-v1:0",
+        "llama-3-1-70b": "meta.llama3-1-70b-instruct-v1:0",
+        "mistral-large-3": "mistral.mistral-large-3-675b-instruct",
+        "minimax-m2.5": "minimax.minimax-m2.5",
+        "minimax-m2.1": "minimax.minimax-m2.1",
+        "glm-5": "zai.glm-5",
+        "glm-4.7": "zai.glm-4.7",
+    },
+)
 
 REGISTRY: Dict[str, RegisteredProvider] = {
     "vertex": RegisteredProvider(
@@ -59,6 +106,26 @@ REGISTRY: Dict[str, RegisteredProvider] = {
         spec=OPENAI_SPEC,
         module_path="src.utils.llm_providers.openai",
         class_name="OpenAIProvider",
+    ),
+    "gemini": RegisteredProvider(
+        spec=GEMINI_SPEC,
+        module_path="src.utils.llm_providers.gemini",
+        class_name="GeminiProvider",
+    ),
+    "bedrock": RegisteredProvider(
+        spec=BEDROCK_SPEC,
+        module_path="src.utils.llm_providers.bedrock",
+        class_name="BedrockProvider",
+    ),
+    "anthropic": RegisteredProvider(
+        spec=AnthropicProvider.spec,
+        module_path="src.utils.llm_providers.anthropic",
+        class_name="AnthropicProvider",
+    ),
+    "openrouter": RegisteredProvider(
+        spec=OpenRouterProvider.spec,
+        module_path="src.utils.llm_providers.openrouter",
+        class_name="OpenRouterProvider",
     ),
 }
 

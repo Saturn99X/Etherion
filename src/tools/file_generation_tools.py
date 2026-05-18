@@ -16,27 +16,28 @@ async def generate_pdf_file(
     agent_id: str = "platform_orchestrator",
     template: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None,
-    kwargs: Optional[Dict[str, Any]] = None,
+    content: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate a PDF using the FileGenerationService.
 
-    Expected input_data keys:
-    - tenant_id (str, required)
-    - job_id (str, required)
-    - agent_id (str, optional; defaults to "platform_orchestrator")
-    - template (str, optional)
-    - data (dict, optional)
-    - other kwargs forwarded to PDF generator
+    Args:
+        tenant_id (str, required)
+        job_id (str, required)
+        agent_id (str, optional; defaults to "platform_orchestrator")
+        template (str, optional)
+        data (dict, optional)
+        content (str, optional) — convenience param, merged into data dict
     """
     data = data or {}
-    kwargs = kwargs or {}
+    if content:
+        data["content"] = content
 
     svc = create_file_generation_service(
         tenant_id=tenant_id, agent_id=agent_id, job_id=job_id
     )
     return await svc.generate_file(
-        file_type=FileType.PDF, template_name=template, data=data, **kwargs
+        file_type=FileType.PDF, template_name=template, data=data
     )
 
 
@@ -47,21 +48,28 @@ async def generate_excel_file(
     agent_id: str = "platform_orchestrator",
     template: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None,
-    kwargs: Optional[Dict[str, Any]] = None,
+    content: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate an Excel file using the FileGenerationService.
 
-    Expected input_data keys similar to generate_pdf_file.
+    Args:
+        tenant_id (str, required)
+        job_id (str, required)
+        agent_id (str, optional)
+        template (str, optional)
+        data (dict, optional)
+        content (str, optional) — merged into data dict
     """
     data = data or {}
-    kwargs = kwargs or {}
+    if content:
+        data["content"] = content
 
     svc = create_file_generation_service(
         tenant_id=tenant_id, agent_id=agent_id, job_id=job_id
     )
     return await svc.generate_file(
-        file_type=FileType.EXCEL, template_name=template, data=data, **kwargs
+        file_type=FileType.EXCEL, template_name=template, data=data
     )
 
 
@@ -72,21 +80,28 @@ async def generate_presentation_file(
     agent_id: str = "platform_orchestrator",
     template: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None,
-    kwargs: Optional[Dict[str, Any]] = None,
+    content: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate a PowerPoint presentation using the FileGenerationService.
 
-    Expected input_data keys similar to generate_pdf_file.
+    Args:
+        tenant_id (str, required)
+        job_id (str, required)
+        agent_id (str, optional)
+        template (str, optional)
+        data (dict, optional)
+        content (str, optional) — merged into data dict
     """
     data = data or {}
-    kwargs = kwargs or {}
+    if content:
+        data["content"] = content
 
     svc = create_file_generation_service(
         tenant_id=tenant_id, agent_id=agent_id, job_id=job_id
     )
     return await svc.generate_file(
-        file_type=FileType.POWERPOINT, template_name=template, data=data, **kwargs
+        file_type=FileType.POWERPOINT, template_name=template, data=data
     )
 
 

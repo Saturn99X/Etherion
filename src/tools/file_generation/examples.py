@@ -72,7 +72,7 @@ async def example_pdf_invoice():
     print(f"✓ Invoice generated successfully!")
     print(f"  Asset ID: {result['asset_id']}")
     print(f"  Filename: {result['filename']}")
-    print(f"  GCS URI: {result['gcs_uri']}")
+    print(f"  Storage URI: {result['storage_uri']}")
     print(f"  Download URL: {result['download_url'][:80]}...")
     print(f"  Size: {result['size_bytes'] / 1024:.2f} KB")
 

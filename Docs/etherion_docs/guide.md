@@ -54,10 +54,10 @@ The GraphQL API built with FastAPI and Strawberry. Explains why GraphQL, how the
 ---
 
 ### [Orchestration](orchestration/README.md)
-How AI jobs are executed: agent teams, the 2N+1 reasoning loop, specialist execution, and tool dispatch.
+How AI jobs are executed: agent teams, checklist-based orchestration, specialist execution, and tool dispatch.
 
 - [Agent Teams](orchestration/agent-teams.md) — composition and configuration
-- [Execution Loop](orchestration/execution-loop.md) — the 2N+1 algorithm with diagram
+- [Execution Loop](orchestration/execution-loop.md) — checklist-based specialist orchestration with diagram
 - [Specialist Executor](orchestration/specialist-executor.md) — inside a single specialist run
 - [Tool Dispatch](orchestration/tool-dispatch.md) — the tool registry and approval flow
 
@@ -125,6 +125,6 @@ The `etherion` CLI and the bare-metal production stack: NixOS, Ansible, systemd,
 The Bubble Tea TUI: architecture, tabs, service lifecycle management, and configuration.
 
 - [Architecture](terminal-ui/architecture.md) — Elm Architecture, RootModel, message routing
-- [Tabs Reference](terminal-ui/tabs-reference.md) — what each of the 8 tabs does
+- [Tabs Reference](terminal-ui/tabs-reference.md) — what each of the 9 tabs does
 - [Service Lifecycle](terminal-ui/service-lifecycle.md) — detached process management
 - [Configuration](terminal-ui/configuration.md) — config file, binary resolution, cross-platform

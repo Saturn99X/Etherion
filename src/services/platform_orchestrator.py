@@ -120,7 +120,7 @@ BASE_PLATFORM_PROMPT = """
 
 - Vision: Etherion is an autonomous, goal-driven digital workforce managed by an orchestrator. Users give goals, not tasks.
 - Multi-Tenancy: Shared infra with strict Row-Level Security. Tenants cannot be mixed or switched by users.
-- Orchestrator (2N+1): Reason-Act-Observe loops with validation between steps, enabling adaptability and transparency.
+- Orchestrator: Reason-Act-Observe loops with validation between steps, enabling adaptability and transparency.
 - Memory: BigQuery-centric KB with Vertex AI Search as a vector cache. Mandatory web grounding eliminates hallucinations.
 - MCP (Hands): Tools perform real actions; confirm-action required for writes; credentials are tenant-scoped.
 - Vibe Code: Natural-language creation of custom agents and teams via blueprints and instant availability.
@@ -442,7 +442,7 @@ class AgentTeamCreator:
         tenant_id: int,
         available_tool_names: List[str],
     ) -> str:
-        llm = get_llm(provider="vertex", tier="pro", config={"temperature": 0.7, "timeout": 120})
+        llm = get_llm(provider="bedrock", tier="smart", config={"temperature": 0.7, "timeout": 120})
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -646,13 +646,16 @@ class AgentTeamCreator:
 
 class PlatformOrchestrator:
     """
-    Highest privilege orchestrator with platform-wide capabilities within tenant scope:
-    - Tool approval and validation
-    - Agent team selection and loading
-    - User preferences and personality loading (fresh from DB)
-    - Agent team blueprint creation
-    - Agent team creation
-    - Tenant-scoped operations only
+    IO — the Platform Orchestrator.
+    
+    IO's ONLY responsibilities:
+    - Chat with users, answer questions using search (web, KB, AI assets)
+    - Propose team configurations (create, update, delete teams)
+    - Propose tool changes (add/remove tools from teams)
+    - Propose instruction updates
+    
+    IO does NOT execute jobs. Job execution is handled by the Team Orchestrator.
+    All write/delete proposals go through the Validation Gate for user approval.
     """
 
     def __init__(self, tenant_id: int, user_id: int, job_id: Optional[str] = None):
@@ -664,86 +667,105 @@ class PlatformOrchestrator:
         self.tool_approver = ToolApprovalManager(tenant_id)
         self.team_creator = AgentTeamCreator(tenant_id)
 
-    async def plan_and_execute(self, goal: str, context: Optional[str] = None) -> Dict[str, Any]:
+    async def search_and_chat(self, query: str) -> Dict[str, Any]:
         """
-        Execute the goal using the Platform Orchestrator (IO).
-        For now, we default to Inquiry Mode: Dual Search + Synthesis.
+        Answer a user question using dual search (web + KB).
+        IO does NOT create teams or execute jobs — it only searches and chats.
         """
-        # 1. Perform Dual Search
-        search_results = await self.perform_dual_search(query=goal)
-        
-        # 2. Synthesize answer (using LLM - simplified for now, just return results)
-        # In a real implementation, we would call an LLM here to synthesize the answer.
-        
-        return {
-            "success": True,
-            "job_id": self.job_id,
-            "output": {
-                "answer": "Search completed.", # Placeholder
-                "search_results": search_results
-            },
-            "status": "COMPLETED"
-        }
+        from src.tools.unified_research_tool import unified_research_tool
+        import asyncio
 
-    async def create_agent_team_blueprint(self, team_specification: str) -> Dict[str, Any]:
-        """Create agent team blueprint from natural language specification"""
-        # Validate tenant isolation
-        await self.tenant_isolation.validate_tenant_access(self.tenant_id)
-
-        # Load fresh user personality (no caching)
-        user_personality = await self.personality_loader.load_fresh_personality(self.user_id)
-
-        # Create team blueprint with personality context
-        blueprint = await self.team_creator.create_blueprint(
-            specification=team_specification,
-            user_personality=user_personality,
-            tenant_id=self.tenant_id
+        web_results = await asyncio.to_thread(
+            unified_research_tool,
+            query=query,
+            tenant_id=str(self.tenant_id),
+            job_id=self.job_id or f"chat_{uuid.uuid4().hex[:8]}",
+            enable_web=True,
         )
 
-        # Attach platform-wide system prompt, enhanced by user context
-        try:
-            platform_prompt = await self.enhanced_system_prompt(BASE_PLATFORM_PROMPT, user_personality)
-            blueprint["platform_prompt"] = platform_prompt
-        except Exception:
-            # Non-fatal
-            pass
+        return {
+            "success": True,
+            "output": {"answer": "Search completed.", "search_results": web_results},
+            "type": "chat",
+        }
 
-        # Compute quick recommendations for teams (deep links) based on tool fit
-        try:
-            tool_reqs = blueprint.get("tool_requirements", [])
-            blueprint["recommended_teams"] = await self._recommend_teams_for_spec(team_specification, tool_reqs)
-        except Exception:
-            # Non-fatal
-            blueprint["recommended_teams"] = []
+    async def propose_team_config(self, specification: str, bypass: bool = False) -> Dict[str, Any]:
+        """
+        IO proposes a team configuration based on natural language specification.
+        Returns a proposal_id if bypass=False (user must approve).
+        Creates the team immediately if bypass=True (bypass permission mode).
+        """
+        await self.tenant_isolation.validate_tenant_access(self.tenant_id)
 
-        # Log security event
-        await self._log_security_event("team_blueprint_created", blueprint)
+        user_personality = await self.personality_loader.load_fresh_personality(self.user_id)
+        blueprint = await self.team_creator.create_blueprint(
+            specification=specification,
+            user_personality=user_personality,
+            tenant_id=self.tenant_id,
+        )
 
-        # Fire UI trigger for agent blueprint visualization on the current job trace
-        try:
-            if self.job_id:
-                await publish_execution_trace(
-                    job_id=self.job_id,
-                    event_data={
-                        "type": "agent_blueprint_created",
-                        "step_description": "Agent team blueprint created",
-                        "tenant_id": self.tenant_id,
-                        "blueprint": blueprint,
-                    },
-                )
-        except Exception:
-            pass
+        # Extract team config from blueprint
+        team_config = {
+            "name": specification.split(" ")[:3] or "New Team",
+            "description": specification[:200],
+            "tool_names": blueprint.get("tool_requirements", ["unified_research_tool", "confirm_action_tool"]),
+            "specification": specification,
+        }
 
-        # Record platform-level token usage if available later in runtime (hook point)
         try:
-            # Placeholder: if platform prompt LLm is invoked elsewhere, record tokens there
-            tracker = CostTracker()
-            # No-op now
-            _ = tracker
+            reqs = blueprint.get("agent_requirements", [])
+            if reqs:
+                team_config["name"] = reqs[0].get("name", team_config["name"])
+                team_config["description"] = reqs[0].get("description", team_config["description"])
         except Exception:
             pass
 
-        return blueprint
+        from src.services.validation_gate import ValidationGate
+        gate = ValidationGate(self.tenant_id)
+        proposal_id = await gate.propose(
+            action_type="create_team",
+            params=team_config,
+            proposer="io",
+            bypass=bypass,
+        )
+
+        result = {
+            "proposal_id": proposal_id,
+            "team_config": team_config,
+            "requires_approval": proposal_id is not None,
+        }
+
+        if proposal_id is None and bypass:
+            await gate._execute_action("create_team", team_config)
+            result["status"] = "created"
+
+        await self._log_security_event("team_proposed", team_config)
+        return result
+
+    async def propose_tool_change(
+        self, team_id: str, tools_to_add: List[str] = None, tools_to_remove: List[str] = None,
+        bypass: bool = False,
+    ) -> Dict[str, Any]:
+        """Propose adding or removing tools from a team."""
+        from src.services.validation_gate import ValidationGate
+        gate = ValidationGate(self.tenant_id)
+
+        proposals = []
+        if tools_to_add:
+            pid = await gate.propose("add_tools", {"team_id": team_id, "tool_names": tools_to_add}, bypass=bypass)
+            proposals.append({"action": "add_tools", "tools": tools_to_add, "proposal_id": pid})
+        if tools_to_remove:
+            pid = await gate.propose("remove_tools", {"team_id": team_id, "tool_names": tools_to_remove}, bypass=bypass)
+            proposals.append({"action": "remove_tools", "tools": tools_to_remove, "proposal_id": pid})
+
+        return {"proposals": proposals, "requires_approval": any(p.get("proposal_id") for p in proposals)}
+
+    async def propose_delete_team(self, team_id: str, bypass: bool = False) -> Dict[str, Any]:
+        """Propose deleting a team."""
+        from src.services.validation_gate import ValidationGate
+        gate = ValidationGate(self.tenant_id)
+        proposal_id = await gate.propose("delete_team", {"team_id": team_id}, bypass=bypass)
+        return {"proposal_id": proposal_id, "requires_approval": proposal_id is not None}
 
     async def approve_tools_for_team(self, team_id: str, tool_names: List[str], auto_approve: bool = True) -> bool:
         """Approve tools for specific agent team with auto-approve capability"""

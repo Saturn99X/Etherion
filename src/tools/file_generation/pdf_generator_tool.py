@@ -23,6 +23,13 @@ import logging
 
 from .base_file_generator import BaseFileGenerator
 
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import LETTER
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,8 +68,6 @@ class PDFGeneratorTool(BaseFileGenerator):
         """
         super().__init__(tenant_id, agent_id, job_id, user_id, project_id)
 
-        from reportlab.lib.pagesizes import LETTER
-        from reportlab.lib.styles import getSampleStyleSheet
         self.page_size = page_size or LETTER
         self.styles = getSampleStyleSheet()
 
@@ -73,9 +78,6 @@ class PDFGeneratorTool(BaseFileGenerator):
 
     def _setup_custom_styles(self):
         """Setup custom paragraph styles for consistent formatting."""
-        from reportlab.lib import colors
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 
         # Title style
         self.styles.add(

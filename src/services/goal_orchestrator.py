@@ -5,11 +5,10 @@ from typing import Dict, Any, Optional, List
 import os
 import sys
 from datetime import datetime, timedelta
-from src.services.platform_orchestrator import PlatformOrchestrator
 from src.services.team_orchestrator import TeamOrchestrator
 from src.core.security.audit_logger import log_security_event
 from src.services.pricing.cost_tracker import CostTracker
-from src.services.pricing.credit_manager import CreditManager
+
 from src.services.pricing.ledger import PricingLedger
 from src.services.tool_instrumentation import instrument_base_tool
 from src.services.prompt_security import get_prompt_security
@@ -56,12 +55,6 @@ class GoalOrchestrator:
         self.job_id = job_id or f"job_{uuid.uuid4().hex[:8]}"
         _log_trace(self.job_id, "INIT", "Initializing GoalOrchestrator",
                    user_id=user_id, tenant_id=tenant_id, goal_preview=str(goal)[:100])
-        try:
-            self.platform_orchestrator = PlatformOrchestrator(tenant_id=self.tenant_id, user_id=self.user_id, job_id=self.job_id)
-            _log_trace(self.job_id, "INIT", "PlatformOrchestrator initialized successfully")
-        except Exception as e:
-            _log_trace(self.job_id, "INIT_ERROR", f"PlatformOrchestrator initialization failed: {type(e).__name__}: {str(e)}")
-            raise
         self.team_orchestrators: Dict[str, TeamOrchestrator] = {}
 
     async def execute(self) -> Dict[str, Any]:
@@ -69,42 +62,6 @@ class GoalOrchestrator:
         Execute the goal by orchestrating agent teams.
         """
         _log_trace(self.job_id, "EXECUTE_START", "Starting goal execution")
-        
-        # Pre-run balance check (no negative balance allowed) with dev bypass
-        credit_mgr = CreditManager()
-        dev_bypass = os.getenv("DEV_BYPASS_AUTH", "0") == "1" or os.getenv("CREDITS_BYPASS", "0") == "1"
-        if not dev_bypass:
-            balance = await credit_mgr.get_balance(self.user_id, tenant_id=str(self.tenant_id))
-            _log_trace(self.job_id, "CREDIT_CHECK", f"Credit balance check",
-                       balance=balance, user_id=self.user_id, tenant_id=self.tenant_id)
-            if balance <= 0:
-                _log_trace(self.job_id, "CREDIT_FAIL", f"INSUFFICIENT_CREDITS - balance={balance}")
-                return {"success": False, "error": "INSUFFICIENT_CREDITS", "job_id": self.job_id}
-
-        # Daily cap enforcement (per user per tenant)
-        try:
-            cap = int(os.getenv("DAILY_CREDIT_CAP", "25") or 25)
-        except Exception:
-            cap = 25
-        if cap > 0:
-            redis = get_redis_client()
-            today = datetime.utcnow().strftime("%Y%m%d")
-            daily_key = f"credits:daily_used:{self.tenant_id}:{self.user_id}:{today}"
-            used_today = int((await redis.get(daily_key, 0)) or 0)
-            _log_trace(self.job_id, "DAILY_CAP_CHECK", f"Daily cap check", used_today=used_today, cap=cap)
-            if used_today >= cap:
-                # Compute reset time (midnight UTC)
-                now = datetime.utcnow()
-                reset_at = (now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)).isoformat()
-                _log_trace(self.job_id, "DAILY_CAP_FAIL", f"DAILY_CREDIT_CAP_EXCEEDED - used={used_today}, cap={cap}")
-                return {
-                    "success": False,
-                    "error": "DAILY_CREDIT_CAP_EXCEEDED",
-                    "job_id": self.job_id,
-                    "reset_at": reset_at,
-                    "used": used_today,
-                    "cap": cap,
-                }
 
         # Input validation & prompt security (Phase 9 - Step 1)
         # 1) Basic sanitation with strict checks
@@ -340,23 +297,10 @@ class GoalOrchestrator:
                 pass
             team_assignments = {"task_1": {"team_id": selected_team_id, "goal": sanitized_goal}}
         else:
-            # 1. Decompose goal into a blueprint using Platform Orchestrator (with augmented context)
-            _log_trace(self.job_id, "BLUEPRINT_START", "Creating agent team blueprint")
-            blueprint = await self.platform_orchestrator.create_agent_team_blueprint(augmented_goal)
-            _log_trace(self.job_id, "BLUEPRINT_END", "Blueprint created",
-                       requirements_count=len(blueprint.get("agent_requirements", [])) if isinstance(blueprint, dict) else 0)
-            await publish_execution_trace(self.job_id, {"type": "BLUEPRINT", "step_description": "Blueprint created"})
-
-            # 2. Assign sub-tasks to specialist teams (simplified for now)
-            _log_trace(self.job_id, "TEAM_ASSIGN_START", "Assigning teams from blueprint")
-            team_assignments = await self._assign_teams_from_blueprint(blueprint)
-            _log_trace(self.job_id, "TEAM_ASSIGN_END", f"Team assignments completed",
-                       assignment_count=len(team_assignments) if team_assignments else 0)
-
-            # Hard gate: if assignment required approval, _assign_teams_from_blueprint returns empty.
-            if not team_assignments:
-                _log_trace(self.job_id, "PENDING_APPROVAL", "Team assignment requires approval")
-                return {"success": False, "error": "PENDING_APPROVAL", "job_id": self.job_id}
+            # No team preselected → cannot execute without a team.
+            # IO should have been used earlier to configure a team.
+            _log_trace(self.job_id, "NO_TEAM", "No team available for execution")
+            return {"success": False, "error": "No team configured for this goal. Use IO to create or select a team first.", "job_id": self.job_id}
 
         # 3. Execute sub-tasks with Team Orchestrators (enforce cost guardrails)
         # Check before tasks
@@ -414,7 +358,7 @@ class GoalOrchestrator:
             pass
 
         # 4. Synthesize results (simplified for now)
-        final_result = self._synthesize_results(task_results)
+        final_result = self._combine_task_results(task_results)
 
         await log_security_event(
             event_type="goal_orchestration_completed",
@@ -424,17 +368,13 @@ class GoalOrchestrator:
         )
         await publish_execution_trace(self.job_id, {"type": "END", "step_description": "Orchestration completed"})
 
-        # Post-run: summarize usage and deduct credits
+        # Post-run: summarize usage
         tracker = CostTracker()
         usage_summary = await tracker.summarize(self.job_id, tenant_id=str(self.tenant_id))
-        # Convert USD→credits using configured ratio; no-op if ratio is 0
         try:
             total_cost_usd = float(usage_summary.get("total_cost", 0.0) or 0.0)
         except Exception:
             total_cost_usd = 0.0
-        ratio = int(os.getenv("DOLLAR_TO_CREDITS_RATIO", "0") or 0)
-        credit_delta = int((total_cost_usd * ratio) + 0.9999) if ratio > 0 else 0  # round up conservatively
-        new_balance = await credit_mgr.deduct(self.user_id, credit_delta, tenant_id=str(self.tenant_id))
 
         # Persist summarized execution cost (job-level row)
         try:
@@ -452,38 +392,25 @@ class GoalOrchestrator:
         except Exception:
             pass
 
-        # Increment daily usage counter and set TTL to midnight UTC
-        try:
-            if credit_delta > 0:
-                redis = get_redis_client()
-                now = datetime.utcnow()
-                today = now.strftime("%Y%m%d")
-                daily_key = f"credits:daily_used:{self.tenant_id}:{self.user_id}:{today}"
-                new_used = await redis.incr(daily_key, credit_delta)
-                # Set expiry to midnight UTC
-                seconds_until_midnight = int(((now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)) - now).total_seconds())
-                await redis.set(daily_key, new_used, expire=max(1, seconds_until_midnight))
-        except Exception:
-            pass
-
         # Append ledger entry
         ledger = PricingLedger()
         await ledger.append_usage_event(
             user_id=self.user_id,
             job_id=self.job_id,
             usage_summary=usage_summary,
-            credit_delta=credit_delta,
+            credit_delta=0,
             currency=usage_summary.get("currency", "USD"),
             tenant_id=str(self.tenant_id),
         )
 
-        return {**final_result, "usage": usage_summary, "new_credit_balance": new_balance}
+        return {**final_result, "usage": usage_summary}
 
     async def _assign_teams_from_blueprint(self, blueprint: Dict[str, Any]) -> Dict[str, Any]:
         """
         Assign teams based on the blueprint from the Platform Orchestrator.
         """
         assignments = {}
+        blueprint_tools = blueprint.get("tool_requirements", [])
         for i, requirement in enumerate(blueprint.get("agent_requirements", [])):
             task_id = f"task_{i+1}"
             
@@ -495,9 +422,9 @@ class GoalOrchestrator:
             team = await self._find_team_by_skill(primary_skill)
             
             if not team:
-                # If not found, request approval and wait
-                await self._request_approval_and_wait(primary_skill, requirement)
-                return {}
+                team = await self._auto_create_team(primary_skill, requirement, blueprint_tools)
+                if not team:
+                    continue
 
             team_id = team.agent_team_id
             print(f"[DEBUG] Assigned existing team {team_id} ({team.name}) for skill {primary_skill}")
@@ -506,20 +433,66 @@ class GoalOrchestrator:
         return assignments
 
     async def _find_team_by_skill(self, skill: str) -> Optional[AgentTeam]:
-        """Find a team that matches the skill (by name)."""
+        """Find a team that matches the skill — by name keywords."""
         try:
-            async with get_scoped_session() as session:
-                # Simple heuristic: look for team with skill in name (case-insensitive)
-                # e.g. "Research" -> "Research Team"
-                stmt = select(AgentTeam).where(
-                    AgentTeam.tenant_id == self.tenant_id,
-                    AgentTeam.is_active == True,
-                    func.lower(AgentTeam.name).contains(skill.lower())
-                )
-                result = await session.execute(stmt)
-                return result.scalars().first()
+            from src.database.db import get_db
+            db = get_db()
+            try:
+                skill_lower = skill.lower()
+                keywords = [w for w in skill_lower.replace("_", " ").split() if len(w) > 2]
+
+                if not keywords:
+                    return None
+
+                all_teams = db.execute(
+                    select(AgentTeam).where(
+                        AgentTeam.tenant_id == self.tenant_id,
+                        AgentTeam.is_active == True,
+                    )
+                ).scalars().all()
+
+                for team in all_teams:
+                    team_name = team.name.lower()
+                    for kw in keywords:
+                        if kw in team_name:
+                            return team
+                return None
+            finally:
+                db.close()
         except Exception as e:
             print(f"[ERROR] Failed to find team by skill {skill}: {e}")
+            return None
+
+    async def _auto_create_team(self, skill: str, requirement: Dict[str, Any], blueprint_tools: List[str] = None) -> Optional[AgentTeam]:
+        """Auto-create an agent team when none exists for the required skill."""
+        name = requirement.get("name", f"{skill.capitalize()} Team")
+        description = requirement.get("description", f"Team for {skill}")
+        tool_names = blueprint_tools or requirement.get("tool_requirements", [])
+        if not tool_names:
+            tool_names = ["unified_research_tool", "ConfirmActionTool"]
+        try:
+            from src.database.db import get_db
+            db = get_db()
+            try:
+                team = AgentTeam(
+                    agent_team_id=AgentTeam.generate_agent_team_id(),
+                    tenant_id=self.tenant_id,
+                    name=name,
+                    description=description,
+                    is_active=True,
+                )
+                team.set_pre_approved_tool_names(tool_names)
+                db.add(team)
+                db.commit()
+                db.refresh(team)
+                print(f"[INFO] Auto-created team {team.agent_team_id} ({name}) for skill {skill} with tools {tool_names}")
+                return team
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[ERROR] Failed to auto-create team for skill {skill}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     async def _request_approval_and_wait(self, skill: str, requirement: Dict[str, Any]):
@@ -569,10 +542,6 @@ class GoalOrchestrator:
         """
         task_results = {}
         tracker = CostTracker()
-        prev_total_credits = 0
-        # Guardrails in credits
-        max_total = int(os.getenv("PLATFORM_MAX_TOTAL_CREDITS", "250")) or 250
-        max_step = int(os.getenv("PLATFORM_MAX_STEP_CREDITS", "50")) or 50
         for task_id, assignment in team_assignments.items():
             team_id = assignment["team_id"]
             task_goal = assignment["goal"]
@@ -583,72 +552,23 @@ class GoalOrchestrator:
                 )
 
             team_orchestrator = self.team_orchestrators[team_id]
-            # Team config would be loaded from DB in a real scenario
             mock_team_config = {"job_id": self.job_id}
 
-            result = await team_orchestrator.execute_2n_plus_1_loop(goal=task_goal, team_config=mock_team_config)
+            result = await team_orchestrator.execute_checklist_loop(goal=task_goal, team_config=mock_team_config)
             task_results[task_id] = result
 
-            # Guardrail checks based on running cost totals
+            # Publish live cost update for UI
             try:
-                # Publish live cost update for UI
-                try:
-                    await tracker.publish_cost_event(self.job_id, tenant_id=str(self.tenant_id))
-                except Exception:
-                    pass
-
-                summary = await tracker.summarize(self.job_id, tenant_id=str(self.tenant_id))
-                # Convert USD total to credits
-                total_usd = float(summary.get("total_cost", 0.0) or 0.0)
-                ratio = int(os.getenv("DOLLAR_TO_CREDITS_RATIO", "0") or 0)
-                total_credits = int(total_usd * ratio) if ratio > 0 else 0
-                step_delta = max(0, total_credits - prev_total_credits)
-                prev_total_credits = total_credits
-                if max_step > 0 and step_delta > max_step:
-                    await publish_execution_trace(self.job_id, {
-                        "type": "GUARDRAIL_ABORT",
-                        "status": "ERROR",
-                        "current_step_description": f"Step credits {step_delta} exceeded cap {max_step}. Aborting.",
-                    })
-                    try:
-                        await log_security_event(
-                            event_type="guardrail_abort",
-                            user_id=self.user_id,
-                            tenant_id=self.tenant_id,
-                            details={"job_id": self.job_id, "reason": "step_cap", "step_delta_credits": step_delta, "max_step_credits": max_step},
-                        )
-                    except Exception:
-                        pass
-                    break
-                if max_total > 0 and total_credits > max_total:
-                    await publish_execution_trace(self.job_id, {
-                        "type": "GUARDRAIL_ABORT",
-                        "status": "ERROR",
-                        "current_step_description": f"Total credits {total_credits} exceeded cap {max_total}. Aborting.",
-                    })
-                    try:
-                        await log_security_event(
-                            event_type="guardrail_abort",
-                            user_id=self.user_id,
-                            tenant_id=self.tenant_id,
-                            details={"job_id": self.job_id, "reason": "total_cap", "total_credits": total_credits, "max_total_credits": max_total},
-                        )
-                    except Exception:
-                        pass
-                    break
+                await tracker.publish_cost_event(self.job_id, tenant_id=str(self.tenant_id))
             except Exception:
                 pass
         return task_results
 
-    def _synthesize_results(self, task_results: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Synthesize the results from all team tasks into a final response.
-        """
-        synthesis = "Final synthesis of all task results:\n"
+    def _combine_task_results(self, task_results: Dict[str, Any]) -> Dict[str, Any]:
+        combined = "Results:\n"
         for task_id, result in task_results.items():
-            synthesis += f"\n- Task {task_id}: {result.get('output', 'No output')}"
-
-        return {"final_result": synthesis}
+            combined += f"\n- Task {task_id}: {result.get('output', 'No output')}"
+        return {"final_result": combined}
 
 
 async def orchestrate_goal_task(
@@ -663,20 +583,22 @@ async def orchestrate_goal_task(
     try:
         # Transition: QUEUED -> RUNNING (DB + PubSub)
         try:
-            async with get_scoped_session() as session:
-                res = await session.exec(select(Job).where(Job.job_id == job_id))
-                job = res.first()
+            from src.database.db import get_db
+            db = get_db()
+            try:
+                job = db.query(Job).filter(Job.job_id == job_id).first()
                 if job:
                     job.update_status(JobStatus.RUNNING)
-                    session.add(job)
+                    db.commit()
+            finally:
+                db.close()
             await publish_job_status(job_id, {
                 "job_id": job_id,
                 "status": "RUNNING",
                 "current_step_description": "Goal orchestration started",
             })
-        except Exception:
-            # Do not fail the job if status update/publish fails
-            pass
+        except Exception as e:
+            logger.warning("Failed to update job status for %s: %s", job_id, e, exc_info=True)
 
         orchestrator = GoalOrchestrator(
             goal=goal_description,
@@ -746,17 +668,42 @@ async def orchestrate_goal_task(
 
         # Success path: persist output summary and mark COMPLETED
         try:
-            async with get_scoped_session() as session:
-                res = await session.exec(select(Job).where(Job.job_id == job_id))
-                job = res.first()
+            from src.database.db import get_db
+            db = get_db()
+            try:
+                job = db.query(Job).filter(Job.job_id == job_id).first()
                 if job:
-                    # Persist a compact summary in output_data
                     try:
                         job.set_output_data(result if isinstance(result, dict) else {"result": result})
                     except Exception:
                         pass
                     job.update_status(JobStatus.COMPLETED)
-                    session.add(job)
+                    db.commit()
+
+                    # Post a message to the thread with the result summary
+                    if job.thread_id:
+                        try:
+                            summary = str(result.get("final_result", str(result)[:1000])) if isinstance(result, dict) else str(result)[:1000]
+                            from sqlalchemy import text as sa_text
+                            proj_id = db.execute(
+                                sa_text("INSERT INTO project (name, description, user_id, tenant_id, created_at) VALUES (:n, :d, :uid, :tid, :ca) RETURNING id"),
+                                {"n": f"Job {job_id}", "d": f"Auto-created for job {job_id}", "uid": job.user_id or 0, "tid": job.tenant_id, "ca": datetime.utcnow()}
+                            ).scalar()
+                            db.commit()
+                            conv_id = db.execute(
+                                sa_text("INSERT INTO conversation (title, project_id, tenant_id, created_at) VALUES (:t, :pid, :tid, :ca) RETURNING id"),
+                                {"t": f"Job {job_id}", "pid": proj_id, "tid": job.tenant_id, "ca": datetime.utcnow()}
+                            ).scalar()
+                            db.commit()
+                            db.execute(
+                                sa_text("INSERT INTO message (thread_id, conversation_id, tenant_id, role, content, created_at) VALUES (:th, :cid, :tnt, 'assistant', :c, :ca)"),
+                                {"th": job.thread_id, "cid": conv_id, "tnt": job.tenant_id, "c": summary[:5000], "ca": datetime.utcnow()}
+                            )
+                            db.commit()
+                        except Exception as msg_e:
+                            logger.warning("Failed to post message to thread %s: %s", job.thread_id, msg_e, exc_info=True)
+            finally:
+                db.close()
             await publish_job_status(job_id, {
                 "job_id": job_id,
                 "status": "COMPLETED",

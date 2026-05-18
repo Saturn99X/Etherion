@@ -219,6 +219,12 @@ class FileGenerationService:
             if "invoice_number" in data:
                 return await self.pdf_generator.generate_invoice(**data, **kwargs)
             elif "content" in data:
+                if isinstance(data["content"], str):
+                    return await self.pdf_generator.generate_simple_document(
+                        title=data.get("title", "Document"),
+                        paragraphs=[data["content"]],
+                        **{k: v for k, v in {**data, **kwargs}.items() if k not in ("content", "title")},
+                    )
                 return await self.pdf_generator.generate_report(**data, **kwargs)
             else:
                 return await self.pdf_generator.generate_simple_document(

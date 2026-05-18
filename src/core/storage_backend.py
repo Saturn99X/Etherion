@@ -37,14 +37,17 @@ class StorageBackend(ABC):
 
 
 def get_storage_backend() -> StorageBackend:
-    """Factory — reads STORAGE_BACKEND env var (local | minio | gcs). Default: minio."""
-    backend = os.getenv("STORAGE_BACKEND", "minio").lower()
+    """Factory — reads STORAGE_BACKEND env var (local | minio | gcs | pg). Default: pg."""
+    backend = os.getenv("STORAGE_BACKEND", "pg").lower()
     if backend == "gcs":
         from .storage_backend_gcs import GCSStorageBackend
         return GCSStorageBackend()
     elif backend == "local":
         from .storage_backend_local import LocalStorageBackend
         return LocalStorageBackend()
-    else:
+    elif backend == "minio":
         from .storage_backend_minio import MinIOStorageBackend
         return MinIOStorageBackend()
+    else:
+        from .storage_backend_pg import PGStorageBackend
+        return PGStorageBackend()

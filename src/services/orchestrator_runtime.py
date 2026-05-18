@@ -62,34 +62,35 @@ class OrchestratorRuntime:
     def __init__(
         self,
         profile: OrchestratorProfile,
-        execution_context: Optional[Dict[str, Any]] = None,
-        observation_context: Optional[Dict[str, Any]] = None,
-        llm: Optional[Runnable] = None,
-    ) -> None:
+        message: str,
+        observation_context: Dict[str, Any],
+        execution_context: Dict[str, Any],
+        tooling_context: Optional[Dict[str, Any]] = None,
+        llm_mode: str = "default",
+    ):
         self.profile = profile
-        self.execution_context = execution_context or {}
-        self.observation_context = observation_context or {}
+        self.message = message
+        self.observation_context = observation_context
+        self.execution_context = execution_context
+        self.tooling_context = tooling_context or {}
+        self._cost_tracker = CostTracker()
 
-        if llm is not None:
-            self.llm = llm
+        # Resolve provider+tier from profile.model_tier (format: "provider/tier")
+        model_tier = profile.model_tier
+        if "/" in model_tier:
+            cfg_provider, cfg_tier = model_tier.split("/", 1)
         else:
-            provider_hint = None
-            model_hint = None
-            try:
-                if isinstance(self.execution_context, dict):
-                    provider_hint = self.execution_context.get("llm_provider")
-                    model_hint = self.execution_context.get("llm_model")
-            except Exception:
-                provider_hint = provider_hint
-                model_hint = model_hint
+            cfg_provider, cfg_tier = "bedrock", "fast"
 
-            if provider_hint:
-                try:
-                    self.llm = get_llm(provider=str(provider_hint), model=model_hint)
-                except Exception:
-                    self.llm = get_gemini_llm(model_tier=profile.model_tier)
+        try:
+            self.llm = get_llm(provider=cfg_provider, tier=cfg_tier)
+        except Exception:
+            try:
+                self.llm = get_llm(provider="bedrock", tier="fast")
+            except Exception:
+                self.llm = get_gemini_llm(model_tier="flash")
             else:
-                self.llm = get_gemini_llm(model_tier=profile.model_tier)
+                self.llm = get_llm(provider="bedrock", tier="fast")
 
         self._cost_tracker = CostTracker()
 
@@ -122,9 +123,9 @@ class OrchestratorRuntime:
         - model: concrete upstream model name (e.g. "gemini-2.5-pro", "gpt-4o")
         """
         try:
-            provider = getattr(llm, "provider", None) or "vertex"
+            provider = getattr(llm, "provider", None) or "bedrock"
         except Exception:
-            provider = "vertex"
+            provider = "bedrock"
         try:
             # Common attributes across providers
             model_name = getattr(llm, "model_name", None) or getattr(llm, "model", None)
@@ -132,12 +133,12 @@ class OrchestratorRuntime:
             model_name = None
 
         if not model_name:
-            # Fall back to tier mapping for Vertex-based orchestrators
+            # Fall back to tier mapping
             try:
-                from src.utils.llm_registry import VERTEX_SPEC
+                from src.utils.llm_registry import BEDROCK_SPEC
 
                 tier = (self.profile.model_tier or "pro").lower()
-                model_name = VERTEX_SPEC.models.get(tier, tier)
+                model_name = BEDROCK_SPEC.models.get(tier, tier)
             except Exception:
                 model_name = self.profile.model_tier
 
@@ -359,8 +360,8 @@ class OrchestratorRuntime:
                         model=str(llm_descriptor.get("model") or self.profile.model_tier) if llm_descriptor else self.profile.model_tier,
                         runtime_context=self.execution_context,
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to record LLM request trace: %s", e, exc_info=True)
 
         try:
             response = await runtime_chain.ainvoke({
@@ -391,12 +392,10 @@ class OrchestratorRuntime:
                         token_usage=token_usage,
                         model=str(llm_descriptor.get("model") or self.profile.model_tier) if llm_descriptor else self.profile.model_tier,
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to record LLM response trace: %s", e, exc_info=True)
 
         self._validate_output(text_output)
-
-        # Prefer the descriptor (actual routed LLM); fall back to base profile/llm
         if llm_descriptor:
             runtime_model = llm_descriptor.get("model") or getattr(self.llm, "model_name", self.profile.model_tier)
             runtime_provider = llm_descriptor.get("provider") or "vertex"

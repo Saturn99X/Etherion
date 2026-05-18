@@ -71,18 +71,16 @@ class ReplayService:
         Record a single execution trace step to the database.
         """
         try:
-            async with get_scoped_session() as session:
-                # Determine next step number
-                # Use a plain SQLAlchemy text query or properly typed select for max
+            from src.database.db import get_db
+            db = get_db()
+            try:
                 from sqlalchemy import text
-                stmt = text("SELECT COALESCE(MAX(step_number), 0) FROM executiontracestep WHERE job_id = :job_id")
-                result = await session.execute(stmt, {"job_id": job_id})
+                result = db.execute(text("SELECT COALESCE(MAX(step_number), 0) FROM executiontracestep WHERE job_id = :job_id"), {"job_id": job_id})
                 max_step = result.scalar() or 0
                 step_number = max_step + 1
 
-                # LOG: Recording step
                 _log_replay(job_id, "RECORD_STEP", f"Recording step {step_number}",
-                            actor=actor, event_type=event_type, step_type=str(step_type),
+                            actor=actor, step_type=str(step_type),
                             action_tool=action_tool, thought_preview=str(thought)[:100] if thought else None)
 
                 step = ExecutionTraceStep(
@@ -105,14 +103,13 @@ class ReplayService:
                     span_id=span_id,
                     parent_span_id=parent_span_id,
                 )
-                session.add(step)
-                # Session commit is handled by get_scoped_session context manager
+                db.add(step)
+                db.commit()
                 return step
+            finally:
+                db.close()
         except Exception as e:
-            _log_replay(job_id, "RECORD_STEP_ERROR", f"Failed to record step: {e}",
-                        actor=actor, event_type=event_type)
-            logger.error(f"Failed to record execution trace step for job {job_id}: {e}")
-            # Do not raise to avoid breaking the orchestrator
+            logger.warning("Failed to record trace step for %s: %s", job_id, e, exc_info=True)
             return None
 
     async def record_llm_request(

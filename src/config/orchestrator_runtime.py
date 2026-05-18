@@ -15,8 +15,11 @@ Plan/PHASE_1_DUAL_ORCHESTRATOR_ARCHITECTURE.md.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+
+from src.config.model_config import get_model_config
 
 
 @dataclass(frozen=True)
@@ -197,7 +200,7 @@ PLATFORM_ORCHESTRATOR_PROFILE = OrchestratorProfile(
 TEAM_ORCHESTRATOR_PROFILE = OrchestratorProfile(
     name="team_orchestrator",
     description="Execution orchestrator that coordinates specialists within a single tenant team "
-    "following the 2N+1 loop mandated by Etherion.",
+    "following the checklist-based orchestration loop mandated by Etherion.",
     system_prompt=(
         "You are the Team Orchestrator. You receive a structured plan from the Platform "
         "Orchestrator and must execute it through the team's specialist agents. For every step:\n"
@@ -268,6 +271,7 @@ TEAM_ORCHESTRATOR_PROFILE = OrchestratorProfile(
         auto_approved_tools=[
             "search_personal_kb",
             "search_project_kb",
+            "unified_research_tool",
             "confirm_action_tool",
         ],
         manual_review_states=["submitted", "pending_platform_orchestrator"],
@@ -290,8 +294,32 @@ ORCHESTRATOR_PROFILES: Dict[str, OrchestratorProfile] = {
 
 
 def get_orchestrator_profile(name: str) -> OrchestratorProfile:
-    """Fetch a typed profile by orchestrator name."""
+    """Fetch a typed profile by orchestrator name, overlaid with env-driven model config."""
+    from dataclasses import replace
     try:
-        return ORCHESTRATOR_PROFILES[name]
+        base = ORCHESTRATOR_PROFILES[name]
     except KeyError as exc:
         raise KeyError(f"No orchestrator profile registered for '{name}'") from exc
+
+    cfg = get_model_config()
+    if name == "platform_orchestrator":
+        provider = cfg.orchestrator_provider
+        tier = cfg.orchestrator_model
+    else:
+        provider = cfg.specialist_provider
+        tier = cfg.specialist_model
+
+    return replace(base, model_tier=f"{provider}/{tier}")
+
+    cfg = get_model_config()
+    if name == "platform_orchestrator":
+        provider = cfg.orchestrator_provider
+        tier = cfg.orchestrator_model
+    else:
+        provider = cfg.specialist_provider
+        tier = cfg.specialist_model
+
+    # Replace model_tier
+    profile = base
+    object.__setattr__(profile, "model_tier", f"{provider}/{tier}")
+    return profile

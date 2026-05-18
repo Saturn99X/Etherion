@@ -86,6 +86,15 @@ type KBSource struct {
 	Capabilities  []string `json:"capabilities"`
 }
 
+// Proposal represents a pending action from IO needing user approval.
+type Proposal struct {
+	ProposalID string      `json:"proposalId"`
+	ActionType string      `json:"actionType"`
+	Proposer   string      `json:"proposer"`
+	Params     interface{} `json:"params"`
+	CreatedAt  string      `json:"createdAt"`
+}
+
 // MCPTool represents an available tool that can be scoped to an agent team.
 type MCPTool struct {
 	Name        string   `json:"name"`
