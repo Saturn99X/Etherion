@@ -92,6 +92,10 @@ class GoogleWorkspaceBase(EnhancedMCPTool):
         # in-memory token cache per tenant
         self._token_cache: Dict[str, GoogleOAuthTokens] = {}
 
+    async def _execute_operation(self, tenant_id: str, operation: str, params: Dict[str, Any]) -> Any:
+        """Subclasses must override this. Delegated here for Python 3.14 ABC compatibility."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _execute_operation")
+
     # ------------------------ OAuth helpers ------------------------
     async def _get_google_tokens(self, tenant_id: str) -> Optional[GoogleOAuthTokens]:
         # Prefer unified provider creds
