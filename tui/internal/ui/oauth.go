@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -763,6 +764,7 @@ func doRevokeOAuth(client *api.Client, provider string) tea.Cmd {
 }
 
 func openBrowser(url string) {
+	logger := "openBrowser"
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
@@ -772,5 +774,9 @@ func openBrowser(url string) {
 	default:
 		cmd = exec.Command("xdg-open", url)
 	}
-	_ = cmd.Start()
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] failed: %v\n", logger, err)
+	}
+	// Always print the URL to stdout as fallback copy-paste
+	fmt.Fprintf(os.Stderr, "\n[%s] If browser didn't open, copy this URL:\n%s\n\n", logger, url)
 }
